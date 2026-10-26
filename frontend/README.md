@@ -293,4 +293,4 @@ The final implementation status of individual features should be verified agains
 
 The project's license has not yet been specified. Add the selected license and its terms before distributing the application.
 
----    Mela Note — Organize your thoughts, simplify your lif   
+---    Mela Note — Organize your thoughts, simplify your life
