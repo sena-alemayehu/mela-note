@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "../../../components/language/LanguageProvider";
 import "../../../styles/notes.css";
 
 type Note = {
@@ -17,6 +17,7 @@ type Note = {
 };
 
 export default function PinnedNotesPage() {
+  const { language, t } = useLanguage();
   const [notes, setNotes] = useState<Note[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -43,38 +44,39 @@ export default function PinnedNotesPage() {
   );
 
   if (!ready) {
-    return <section className="notes-page">Loading pinned notes...</section>;
+    return <section className="notes-page">{t("loadingPinned")}</section>;
   }
 
   return (
-    <section className="notes-page">
+    <section className="notes-page" lang={language}>
       <div className="notes-page-header">
         <div>
-          <p className="notes-page-eyebrow">QUICK ACCESS</p>
-          <h1>📌 Pinned Notes</h1>
-          <p>Keep your most important notes easy to find.</p>
+          <p className="notes-page-eyebrow">{t("quickAccess")}</p>
+          <h1>📌 {t("pinnedNotes")}</h1>
+          <p>{t("pinnedDescription")}</p>
         </div>
 
         <Link href="/dashboard" className="notes-back-link">
-          ← Dashboard
+          {t("backToDashboard")}
         </Link>
       </div>
 
       <p className="notes-results-count">
         {pinnedNotes.length}{" "}
-        {pinnedNotes.length === 1 ? "pinned note" : "pinned notes"}
+        {language === "am"
+          ? t("pinnedNotesCount")
+          : pinnedNotes.length === 1
+            ? t("pinnedNote")
+            : t("pinnedNotesCount")}
       </p>
 
       {pinnedNotes.length === 0 ? (
         <div className="notes-empty-state">
           <div className="notes-empty-icon">📌</div>
-          <h2>No pinned notes yet</h2>
-          <p>
-            Pin important notes to make them appear here. Your existing notes
-            are safe.
-          </p>
+          <h2>{t("noPinnedNotes")}</h2>
+          <p>{t("pinImportantNotes")}</p>
           <Link href="/dashboard" className="notes-primary-link">
-            Go to Dashboard
+            {t("goToDashboard")}
           </Link>
         </div>
       ) : (
@@ -82,19 +84,23 @@ export default function PinnedNotesPage() {
           {pinnedNotes.map((note) => (
             <article className="notes-list-card" key={note.id}>
               <div className="notes-list-card-top">
-                <h2>{note.title.trim() || "Untitled note"}</h2>
-                <span className="notes-status-badge">📌 Pinned</span>
+                <h2>{note.title.trim() || t("untitledNote")}</h2>
+                <span className="notes-status-badge">
+                  📌 {t("pinned")}
+                </span>
               </div>
 
               <p className="notes-card-content">
-                {note.content || "This note has no text yet."}
+                {note.content || t("noText")}
               </p>
 
               <p className="notes-card-date">
-                Updated{" "}
+                {t("updated")}{" "}
                 {note.updatedAt
-                  ? new Date(note.updatedAt).toLocaleString()
-                  : "recently"}
+                  ? new Date(note.updatedAt).toLocaleString(
+                      language === "am" ? "am-ET" : "en-US"
+                    )
+                  : t("recently")}
               </p>
             </article>
           ))}

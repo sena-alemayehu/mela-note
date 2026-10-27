@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "../../../components/language/LanguageProvider";
 import "../../../styles/notes.css";
 
 type Note = {
@@ -17,6 +18,8 @@ type Note = {
 };
 
 export default function TrashPage() {
+  const { language, t } = useLanguage();
+
   const [notes, setNotes] = useState<Note[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -25,7 +28,8 @@ export default function TrashPage() {
       const savedNotes = localStorage.getItem("mela-note-demo-notes");
 
       if (savedNotes) {
-        setNotes(JSON.parse(savedNotes) as Note[]);
+        const parsed: Note[] = JSON.parse(savedNotes);
+        setNotes(Array.isArray(parsed) ? parsed : []);
       }
     } catch (error) {
       console.error("Could not load trashed notes:", error);
@@ -57,9 +61,7 @@ export default function TrashPage() {
   }
 
   function handleDeletePermanently(noteId: string) {
-    const confirmed = window.confirm(
-      "Are you sure you want to permanently delete this note? This action cannot be undone."
-    );
+    const confirmed = window.confirm(t("confirmPermanentDelete"));
 
     if (!confirmed) return;
 
@@ -75,45 +77,64 @@ export default function TrashPage() {
   }
 
   if (!ready) {
-    return <div className="notes-page">Loading Trash...</div>;
+    return (
+      <section className="notes-page" lang={language}>
+        {t("loadingTrash")}
+      </section>
+    );
   }
 
   return (
-    <section className="notes-page">
+    <section className="notes-page" lang={language}>
       <header className="notes-page-header">
         <div>
-          <p className="notes-page-eyebrow">RECOVER OR DELETE</p>
-          <h1>Trash</h1>
-          <p>Restore notes or permanently delete the ones you no longer need.</p>
+          <p className="notes-page-eyebrow">
+            {t("recoverOrDelete")}
+          </p>
+
+          <h1>{t("trash")}</h1>
+
+          <p>{t("trashDescription")}</p>
         </div>
 
         <Link href="/dashboard" className="notes-back-link">
-          Back to Dashboard
+          ← {t("backToDashboard")}
         </Link>
       </header>
 
       {trashedNotes.length === 0 ? (
         <div className="notes-empty-state">
           <div className="notes-empty-icon">♲</div>
-          <h2>Your Trash is empty</h2>
-          <p>Notes you move to Trash will appear here.</p>
+          <h2>{t("emptyTrash")}</h2>
+          <p>{t("trashExplanation")}</p>
+
+          <Link href="/dashboard" className="notes-primary-link">
+            {t("goToDashboard")}
+          </Link>
         </div>
       ) : (
         <div className="notes-grid">
           {trashedNotes.map((note) => (
             <article className="note-card" key={note.id}>
               <div className="note-card-header">
-                <h2>{note.title || "Untitled note"}</h2>
-                <span className="note-badge">In Trash</span>
+                <h2>{note.title.trim() || t("untitledNote")}</h2>
+
+                <span className="note-badge">
+                  {t("inTrash")}
+                </span>
               </div>
 
               <p className="note-card-content">
-                {note.content || "This note has no text content."}
+                {note.content || t("noTextContent")}
               </p>
 
               <p className="note-card-date">
-                Last updated:{" "}
-                {new Date(note.updatedAt).toLocaleDateString()}
+                {t("lastUpdated")}{" "}
+                {note.updatedAt
+                  ? new Date(note.updatedAt).toLocaleDateString(
+                      language === "am" ? "am-ET" : "en-US"
+                    )
+                  : t("recently")}
               </p>
 
               <div className="notes-trash-actions">
@@ -122,7 +143,7 @@ export default function TrashPage() {
                   className="notes-restore-button"
                   onClick={() => handleRestore(note.id)}
                 >
-                  ↶ Restore
+                  ↶ {t("restore")}
                 </button>
 
                 <button
@@ -130,7 +151,7 @@ export default function TrashPage() {
                   className="notes-danger-button"
                   onClick={() => handleDeletePermanently(note.id)}
                 >
-                  Permanently Delete
+                  {t("permanentlyDelete")}
                 </button>
               </div>
             </article>

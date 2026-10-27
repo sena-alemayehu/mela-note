@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "../../../components/language/LanguageProvider";
 import "../../../styles/notes.css";
 
 type Note = {
@@ -17,6 +17,7 @@ type Note = {
 };
 
 export default function FavoritesPage() {
+  const { language, t } = useLanguage();
   const [notes, setNotes] = useState<Note[]>([]);
   const [ready, setReady] = useState(false);
 
@@ -43,38 +44,39 @@ export default function FavoritesPage() {
   );
 
   if (!ready) {
-    return <section className="notes-page">Loading favorites...</section>;
+    return <section className="notes-page">{t("loadingFavorites")}</section>;
   }
 
   return (
-    <section className="notes-page">
+    <section className="notes-page" lang={language}>
       <div className="notes-page-header">
         <div>
-          <p className="notes-page-eyebrow">YOUR COLLECTION</p>
-          <h1>♥ Favorites</h1>
-          <p>Find the notes you have marked as your favorites.</p>
+          <p className="notes-page-eyebrow">{t("yourCollection")}</p>
+          <h1>♥ {t("favorites")}</h1>
+          <p>{t("favoritesDescription")}</p>
         </div>
 
         <Link href="/dashboard" className="notes-back-link">
-          ← Dashboard
+          {t("backToDashboard")}
         </Link>
       </div>
 
       <p className="notes-results-count">
         {favoriteNotes.length}{" "}
-        {favoriteNotes.length === 1 ? "favorite note" : "favorite notes"}
+        {language === "am"
+          ? t("favoriteNotes")
+          : favoriteNotes.length === 1
+            ? t("favoriteNote")
+            : t("favoriteNotes")}
       </p>
 
       {favoriteNotes.length === 0 ? (
         <div className="notes-empty-state">
           <div className="notes-empty-icon">♡</div>
-          <h2>No favorites yet</h2>
-          <p>
-            Mark a note as a favorite from your dashboard, and it will appear
-            here.
-          </p>
+          <h2>{t("noFavorites")}</h2>
+          <p>{t("markFavorite")}</p>
           <Link href="/dashboard" className="notes-primary-link">
-            Go to Dashboard
+            {t("goToDashboard")}
           </Link>
         </div>
       ) : (
@@ -82,19 +84,23 @@ export default function FavoritesPage() {
           {favoriteNotes.map((note) => (
             <article className="notes-list-card" key={note.id}>
               <div className="notes-list-card-top">
-                <h2>{note.title.trim() || "Untitled note"}</h2>
-                <span className="notes-status-badge">♥ Favorite</span>
+                <h2>{note.title.trim() || t("untitledNote")}</h2>
+                <span className="notes-status-badge">
+                  ♥ {t("favorite")}
+                </span>
               </div>
 
               <p className="notes-card-content">
-                {note.content || "This note has no text yet."}
+                {note.content || t("noText")}
               </p>
 
               <p className="notes-card-date">
-                Updated{" "}
+                {t("updated")}{" "}
                 {note.updatedAt
-                  ? new Date(note.updatedAt).toLocaleString()
-                  : "recently"}
+                  ? new Date(note.updatedAt).toLocaleString(
+                      language === "am" ? "am-ET" : "en-US"
+                    )
+                  : t("recently")}
               </p>
             </article>
           ))}

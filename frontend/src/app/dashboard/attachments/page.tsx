@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "../../../components/language/LanguageProvider";
 import "../../../styles/notes.css";
 
 type NoteAttachment = {
@@ -69,6 +70,8 @@ function formatFileSize(bytes: number): string {
 }
 
 export default function AttachmentsPage() {
+  const { language, t } = useLanguage();
+
   const [notes, setNotes] = useState<Note[]>([]);
   const [ready, setReady] = useState(false);
   const [search, setSearch] = useState("");
@@ -99,11 +102,11 @@ export default function AttachmentsPage() {
           (note.attachments ?? []).map((attachment) => ({
             ...attachment,
             noteId: note.id,
-            noteTitle: note.title?.trim() || "Untitled note",
+            noteTitle: note.title?.trim() || t("untitledNote"),
             noteUpdatedAt: note.updatedAt,
           }))
         ),
-    [notes]
+    [notes, t]
   );
 
   const filteredAttachments = useMemo(() => {
@@ -130,21 +133,34 @@ export default function AttachmentsPage() {
       });
   }, [allAttachments, search, category, sort]);
 
+  const categoryLabels: Record<Category, string> = {
+    all: t("allFileTypes"),
+    images: t("images"),
+    pdfs: t("pdfFiles"),
+    documents: t("documents"),
+    audio: t("audio"),
+    other: t("otherFiles"),
+  };
+
   if (!ready) {
-    return <section className="notes-page">Loading attachments...</section>;
+    return (
+      <section className="notes-page" lang={language}>
+        {t("loadingAttachments")}
+      </section>
+    );
   }
 
   return (
-    <section className="notes-page attachments-page">
+    <section className="notes-page attachments-page" lang={language}>
       <div className="notes-page-header">
         <div>
-          <p className="notes-page-eyebrow">YOUR FILE LIBRARY</p>
-          <h1>📎 Attachments</h1>
-          <p>Find files attached to your active notes.</p>
+          <p className="notes-page-eyebrow">{t("fileLibrary")}</p>
+          <h1>{t("attachments")}</h1>
+          <p>{t("attachmentsDescription")}</p>
         </div>
 
         <Link href="/dashboard" className="notes-back-link">
-          ← Dashboard
+          ← {t("backToDashboard")}
         </Link>
       </div>
 
@@ -152,24 +168,23 @@ export default function AttachmentsPage() {
         <input
           type="search"
           className="notes-search-input"
-          placeholder="Search files or note titles..."
+          placeholder={t("searchAttachments")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          aria-label="Search attachments"
+          aria-label={t("searchAttachmentsLabel")}
         />
 
         <select
           className="attachment-select"
           value={category}
           onChange={(event) => setCategory(event.target.value as Category)}
-          aria-label="Filter attachments by type"
+          aria-label={t("filterAttachments")}
         >
-          <option value="all">All file types</option>
-          <option value="images">Images</option>
-          <option value="pdfs">PDF files</option>
-          <option value="documents">Documents</option>
-          <option value="audio">Audio</option>
-          <option value="other">Other files</option>
+          {(Object.keys(categoryLabels) as Category[]).map((key) => (
+            <option key={key} value={key}>
+              {categoryLabels[key]}
+            </option>
+          ))}
         </select>
 
         <select
@@ -178,10 +193,10 @@ export default function AttachmentsPage() {
           onChange={(event) =>
             setSort(event.target.value as "newest" | "oldest")
           }
-          aria-label="Sort attachments"
+          aria-label={t("sortAttachments")}
         >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
+          <option value="newest">{t("newestFirst")}</option>
+          <option value="oldest">{t("oldestFirst")}</option>
         </select>
 
         <div className="attachment-view-toggle">
@@ -191,38 +206,43 @@ export default function AttachmentsPage() {
             onClick={() => setView("grid")}
             aria-pressed={view === "grid"}
           >
-            Grid
+            {t("grid")}
           </button>
+
           <button
             type="button"
             className={view === "list" ? "selected" : ""}
             onClick={() => setView("list")}
             aria-pressed={view === "list"}
           >
-            List
+            {t("list")}
           </button>
         </div>
       </div>
 
       <p className="notes-results-count">
-        Showing {filteredAttachments.length} of {allAttachments.length} files
+        {t("showing")} {filteredAttachments.length} {t("of")}{" "}
+        {allAttachments.length} {t("files")}
       </p>
 
       {filteredAttachments.length === 0 ? (
         <div className="notes-empty-state">
           <div className="notes-empty-icon">📎</div>
+
           <h2>
             {search || category !== "all"
-              ? "No matching attachments"
-              : "No attachments yet"}
+              ? t("noMatchingAttachments")
+              : t("noAttachments")}
           </h2>
+
           <p>
             {search || category !== "all"
-              ? "Try another search term or file type."
-              : "Attach files to your notes and they will appear here."}
+              ? t("tryAnotherFilter")
+              : t("attachFiles")}
           </p>
+
           <Link href="/dashboard" className="notes-primary-link">
-            Go to Dashboard
+            {t("goToDashboard")}
           </Link>
         </div>
       ) : (
@@ -248,7 +268,7 @@ export default function AttachmentsPage() {
                     target="_blank"
                     rel="noreferrer"
                     className="attachment-preview"
-                    aria-label={`Preview ${attachment.name}`}
+                    aria-label={`${t("previewAttachment")} ${attachment.name}`}
                   >
                     <img src={attachment.dataUrl} alt={attachment.name} />
                   </a>
@@ -266,11 +286,14 @@ export default function AttachmentsPage() {
 
                 <div className="attachment-card-info">
                   <h2 title={attachment.name}>{attachment.name}</h2>
+
                   <p className="attachment-file-meta">
-                    {formatFileSize(attachment.size)} · {fileCategory}
+                    {formatFileSize(attachment.size)} ·{" "}
+                    {categoryLabels[fileCategory]}
                   </p>
+
                   <p className="attachment-note-title">
-                    Attached to: {attachment.noteTitle}
+                    {t("attachedTo")} {attachment.noteTitle}
                   </p>
                 </div>
 
@@ -280,11 +303,11 @@ export default function AttachmentsPage() {
                     href={attachment.dataUrl}
                     download={attachment.name}
                   >
-                    Download
+                    {t("download")}
                   </a>
                 ) : (
                   <span className="attachment-unavailable">
-                    File unavailable
+                    {t("fileUnavailable")}
                   </span>
                 )}
               </article>
