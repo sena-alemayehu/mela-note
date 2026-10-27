@@ -56,6 +56,25 @@ const copy = {
     emptyTrash: "Your Trash is empty.",
     confirmPermanentDelete:
   "Permanently delete this note? This action cannot be undone.",
+    attachment: "attachment", 
+    attachmentSearch: "Search by file name or note",
+    upload: "Upload",
+    dropFiles: "Drag files here to attach, or",
+    browse: "Browse",
+    fileLimit: "Up to 25 MB per file",
+    allFiles: "All",
+    images: "Images",
+    pdfs: "PDFs",
+    documents: "Documents",
+    audio: "Audio",
+    newest: "Newest",
+    oldest: "Oldest",
+    gridView: "Grid view",
+    listView: "List view",
+    noAttachments: "No attachments yet",
+    noAttachmentsDescription: "Attach files to your notes to see them here.",
+    attachedTo: "Attached to",
+    download: "Download",
   },
   am: {
     eyebrow: "የእርስዎ የግል የሥራ ቦታ",
@@ -74,6 +93,7 @@ const copy = {
     noteDescription: "ሀሳቦችዎን ይጻፉና አስፈላጊ መረጃዎችን በአንድ ቦታ ያስቀምጡ።",
     favoriteDescription: "አስፈላጊ ሀሳቦችዎን በቀላሉ ያግኙ።",
     attachments: "የተያያዙ ፋይሎች",
+    attachment: "ዓባሪ",
     attachmentsDescription: "ለፋይሎችዎና ለጠቃሚ ሀብቶችዎ የተዘጋጀ ቦታ።",
     quickAccess: "በቀላሉ ለማግኘት",
     comingNext: "በቅርቡ",
@@ -103,6 +123,24 @@ const copy = {
     confirmPermanentDelete:
   "ይህን ማስታወሻ ለዘላለም መሰረዝ ይፈልጋሉ? ይህ እርምጃ መመለስ አይቻልም።",
   },
+    attachmentSearch: "በፋይል ስም ወይም በማስታወሻ ይፈልጉ",
+    upload: "ጫን",
+    dropFiles: "ፋይሎችን እዚህ ይጎትቱና ይልቀቁ፣ ወይም",
+    browse: "ይምረጡ",
+    fileLimit: "እስከ 25 MB በእያንዳንዱ ፋይል",
+    allFiles: "ሁሉም",
+    images: "ምስሎች",
+    pdfs: "PDF ፋይሎች",
+    documents: "ሰነዶች",
+    audio: "ድምጽ",
+    newest: "አዲስ የተጨመሩ",
+    oldest: "አሮጌ የተጨመሩ",
+    gridView: "የፍርግርግ እይታ",
+    listView: "የዝርዝር እይታ",
+    noAttachments: "ገና የተያያዙ ፋይሎች የሉም",
+    noAttachmentsDescription: "እዚህ ለማየት ፋይሎችን ከማስታወሻዎችዎ ጋር ያያይዙ።",
+    attachedTo: "የተያያዘው ከ",
+    download: "አውርድ",
 };
 
 export default function DashboardPage() {
@@ -122,8 +160,19 @@ export default function DashboardPage() {
   
   
 const [activeView, setActiveView] = useState<
-  "all" | "favorites" | "trash"
+  "all" | "favorites" | "trash" | "attachments"
 >("all");
+
+const [attachmentSearch, setAttachmentSearch] = useState("");
+const [attachmentFilter, setAttachmentFilter] = useState<
+  "all" | "images" | "pdfs" | "documents" | "audio"
+>("all");
+const [attachmentLayout, setAttachmentLayout] = useState<
+  "grid" | "list"
+>("grid");
+const [attachmentSort, setAttachmentSort] = useState<
+  "newest" | "oldest"
+>("newest");
   useEffect(() => {
     const authenticated = sessionStorage.getItem(
       "mela-note-demo-authenticated"
@@ -195,6 +244,47 @@ function handleToggleFavorite(noteId: string) {
   );
 }
 
+
+function handleTogglePinned(noteId: string) {
+  const updatedNotes = notes.map((note) =>
+    note.id === noteId
+      ? {
+          ...note,
+          isPinned: !note.isPinned,
+          updatedAt: new Date().toISOString(),
+        }
+      : note
+  );
+
+  setNotes(updatedNotes);
+
+  localStorage.setItem(
+    "mela-note-demo-notes",
+    JSON.stringify(updatedNotes)
+  );
+}
+
+
+function handleArchive(noteId: string) {
+  const updatedNotes = notes.map((note) =>
+    note.id === noteId
+      ? {
+          ...note,
+          isArchived: true,
+          updatedAt: new Date().toISOString(),
+        }
+      : note
+  );
+
+  setNotes(updatedNotes);
+
+  localStorage.setItem(
+    "mela-note-demo-notes",
+    JSON.stringify(updatedNotes)
+  );
+}
+
+
 function handleRestore(noteId: string) {
   const updatedNotes = notes.map((note) =>
     note.id === noteId
@@ -253,7 +343,7 @@ const filteredNotes = notes.filter((note) => {
   if (note.isTrashed === true) {
     return false;
   }
-
+if (note.isArchived === true) return false;
 
   if (activeView === "favorites" && !note.isFavorite) {
     return false;
@@ -267,7 +357,69 @@ const filteredNotes = notes.filter((note) => {
     note.content.toLowerCase().includes(query)
   );
 });
+const allAttachments = notes
+  .filter((note) => !note.isTrashed)
+  .flatMap((note) =>
+    (note.attachments ?? []).map((attachment) => ({
+      ...attachment,
+      noteId: note.id,
+      noteTitle: note.title || t.untitled,
+      noteUpdatedAt: note.updatedAt,
+    }))
+  );
 
+function getAttachmentCategory(type: string, name: string) {
+  const extension = name.split(".").pop()?.toLowerCase() ?? "";
+
+  if (type.startsWith("image/")) return "images";
+  if (type === "application/pdf" || extension === "pdf") return "pdfs";
+
+  if (
+    type.startsWith("audio/") ||
+    ["mp3", "wav", "m4a", "ogg", "aac", "flac"].includes(extension)
+  ) {
+    return "audio";
+  }
+
+  if (
+    type.includes("document") ||
+    type.includes("word") ||
+    type.includes("spreadsheet") ||
+    type.includes("presentation") ||
+    ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "csv"].includes(extension)
+  ) {
+    return "documents";
+  }
+
+  return "other";
+}
+
+const filteredAttachments = allAttachments
+  .filter((attachment) => {
+    const query = attachmentSearch.trim().toLowerCase();
+
+    const matchesSearch =
+      attachment.name.toLowerCase().includes(query) ||
+      attachment.noteTitle.toLowerCase().includes(query);
+
+    const category = getAttachmentCategory(
+      attachment.type,
+      attachment.name
+    );
+
+    const matchesFilter =
+      attachmentFilter === "all" ||
+      category === attachmentFilter;
+
+    return matchesSearch && matchesFilter;
+  })
+  .sort((a, b) => {
+    const difference =
+      new Date(a.noteUpdatedAt).getTime() -
+      new Date(b.noteUpdatedAt).getTime();
+
+    return attachmentSort === "newest" ? -difference : difference;
+  });
 
   if (!ready) {
     return <main className="dashboard-loading">{t.loading}</main>;
@@ -276,63 +428,7 @@ const filteredNotes = notes.filter((note) => {
 
 
   return (
-    <main className="dashboard-page" lang={language}>
-      <aside className="dashboard-sidebar">
-        <Link href="/dashboard" className="dashboard-logo">
-          Mela <strong>Note</strong>
-        </Link>
-
-        <nav className="dashboard-nav">
-          <Link href="/dashboard" className="dashboard-nav-link active">
-            <span>⌂</span> {t.dashboard}
-          </Link>
-         
-<button
-  className={`dashboard-nav-link ${
-    activeView === "all" ? "active" : ""
-  }`}
-  type="button"
-  onClick={() => {
-    setActiveView("all");
-    document.getElementById("my-notes")?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }}
->
-  <span>▤</span> {t.allNotes}
-</button>
-
-          
-<button
-  className={`dashboard-nav-link ${
-    activeView === "favorites" ? "active" : ""
-  }`}
-  type="button"
-  onClick={() => setActiveView("favorites")}
->
-  <span>☆</span> {t.favorites}
-</button>
-
-<button
-  className={`dashboard-nav-link ${
-    activeView === "trash" ? "active" : ""
-  }`}
-  type="button"
-  onClick={() => setActiveView("trash")}
->
-  <span>⌫</span> {t.trash}
-</button>
-
-        </nav>
-
-        <button
-          className="dashboard-logout"
-          type="button"
-          onClick={handleLogout}
-        >
-          ↪ {t.logout}
-        </button>
-      </aside>
+    <>
 
       <section className="dashboard-main">
         <header className="dashboard-header">
@@ -414,12 +510,30 @@ const filteredNotes = notes.filter((note) => {
 </button>
 
 
-            <article className="dashboard-feature-card">
-              <div className="dashboard-feature-icon blue">⌁</div>
-              <h3>{t.attachments}</h3>
-              <p>{t.attachmentsDescription}</p>
-              <span>{t.comingNext}</span>
-            </article>
+            
+<button
+  className="dashboard-feature-card dashboard-feature-button"
+  type="button"
+  onClick={() => {
+    setActiveView("attachments");
+    document.getElementById("my-notes")?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }}
+>
+  <div className="dashboard-feature-icon blue">⌁</div>
+  <h3>{t.attachments}</h3>
+  <p>{t.attachmentsDescription}</p>
+  <span>
+    {notes.reduce(
+      (total, note) =>
+        total +
+        (note.isTrashed ? 0 : note.attachments?.length ?? 0),
+      0
+    )}{" "}
+    {t.attachments} →
+  </span>
+</button>
           </div>
         </section>
 
@@ -494,6 +608,16 @@ const filteredNotes = notes.filter((note) => {
         <h3>{note.title || t.untitled}</h3>
         <p>{note.content || "—"}</p>
 
+           {note.attachments && note.attachments.length > 0 && (
+  <div className="note-card-attachments">
+    <span aria-hidden="true">📎</span>{" "}
+    {note.attachments.length}{" "}
+    {note.attachments.length === 1
+      ? t.attachment
+      : t.attachments}
+  </div>
+)}
+
         <small>
           {t.updated}:{" "}
           {new Date(note.updatedAt).toLocaleDateString(
@@ -534,6 +658,26 @@ const filteredNotes = notes.filter((note) => {
                 {note.isFavorite ? t.unfavorite : t.favorite}
               </button>
 
+              
+<button
+  type="button"
+  onClick={() => handleTogglePinned(note.id)}
+  aria-label={note.isPinned ? "Unpin note" : "Pin note"}
+>
+  {note.isPinned ? "📌 Unpin" : "📌 Pin"}
+</button>
+
+<button
+  type="button"
+  onClick={() => handleArchive(note.id)}
+  aria-label="Archive note"
+>
+  ▣ Archive
+</button>
+
+
+
+
               <button
                 type="button"
                 onClick={() => handleDelete(note.id)}
@@ -562,6 +706,6 @@ const filteredNotes = notes.filter((note) => {
           }}
         />
       )}
-    </main>
+    </>
   );
 }
