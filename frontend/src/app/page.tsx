@@ -1,9 +1,6 @@
-import Image from "next/image";
+
+import AuthScreen from "../components/auth/AuthScreen";
 
 export default function Home() {
-  return (
-    <div className="justify-center dark:bg-black">
-       <h1 className="justify-center">WELCOME</h1>
-    </div>
-  );
+  return <AuthScreen mode="signup" />;
 }
