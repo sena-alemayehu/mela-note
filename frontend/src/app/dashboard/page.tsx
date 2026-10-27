@@ -147,9 +147,40 @@ export default function DashboardPage() {
   const router = useRouter();
   const { language } = useLanguage();
   const t = copy[language];
+  const [currentHour, setCurrentHour] = useState<number | null>(null);
+  const greeting = (() => {
+  if (currentHour === null) {
+    return "";
+  }
 
+  if (currentHour >= 5 && currentHour < 12) {
+    return language === "am" ? "እንደምን አደሩ" : "Good morning";
+  }
+
+  if (currentHour >= 12 && currentHour < 17) {
+    return language === "am" ? "እንደምን ዋሉ" : "Good afternoon";
+  }
+
+  if (currentHour >= 17 && currentHour < 21) {
+    return language === "am" ? "እንደምን አመሹ" : "Good evening";
+  }
+
+  return language === "am" ? "መልካም ሌሊት" : "Good night";
+})();
   const [ready, setReady] = useState(false);
   const [accountName, setAccountName] = useState("User");
+
+useEffect(() => {
+  const updateHour = () => {
+    setCurrentHour(new Date().getHours());
+  };
+
+  updateHour();
+
+  const intervalId = window.setInterval(updateHour, 60_000);
+
+  return () => window.clearInterval(intervalId);
+}, []);
   const [notes, setNotes] = useState<Note[]>([]);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -434,9 +465,9 @@ const filteredAttachments = allAttachments
         <header className="dashboard-header">
           <div>
             <p className="dashboard-eyebrow">{t.eyebrow}</p>
-            <h1>
-              {t.greeting}, {accountName}!
-            </h1>
+           <h1>
+  {greeting ? `${greeting}, ${accountName}!` : `${accountName}!`}
+</h1>
             <p className="dashboard-subtitle">{t.subtitle}</p>
           </div>
 

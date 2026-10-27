@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "../../../components/language/LanguageProvider";
 import "../../../styles/notes.css";
 
 type Note = {
@@ -17,6 +17,7 @@ type Note = {
 };
 
 export default function AllNotesPage() {
+  const { language, t } = useLanguage();
   const [notes, setNotes] = useState<Note[]>([]);
   const [search, setSearch] = useState("");
   const [ready, setReady] = useState(false);
@@ -48,20 +49,20 @@ export default function AllNotesPage() {
   });
 
   if (!ready) {
-    return <section className="notes-page">Loading notes...</section>;
+    return <section className="notes-page">{t("loadingNotes")}</section>;
   }
 
   return (
-    <section className="notes-page">
+    <section className="notes-page" lang={language}>
       <div className="notes-page-header">
         <div>
-          <p className="notes-page-eyebrow">YOUR WORKSPACE</p>
-          <h1>All Notes</h1>
-          <p>Find and review all your active notes in one place.</p>
+          <p className="notes-page-eyebrow">{t("workspace")}</p>
+          <h1>{t("allNotes")}</h1>
+          <p>{t("allNotesDescription")}</p>
         </div>
 
         <Link href="/dashboard" className="notes-back-link">
-          ← Dashboard
+          {t("backToDashboard")}
         </Link>
       </div>
 
@@ -69,28 +70,33 @@ export default function AllNotesPage() {
         <input
           type="search"
           className="notes-search-input"
-          placeholder="Search your notes..."
+          placeholder={t("searchNotes")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          aria-label="Search notes"
+          aria-label={t("searchNotesLabel")}
         />
       </div>
 
       <p className="notes-results-count">
-        {filteredNotes.length} {filteredNotes.length === 1 ? "note" : "notes"}
+        {filteredNotes.length}{" "}
+        {language === "am"
+          ? t("notes")
+          : filteredNotes.length === 1
+            ? t("note")
+            : t("notes")}
       </p>
 
       {filteredNotes.length === 0 ? (
         <div className="notes-empty-state">
           <div className="notes-empty-icon">▤</div>
-          <h2>{search ? "No matching notes" : "No notes yet"}</h2>
+          <h2>{search ? t("noMatchingNotes") : t("noNotesYet")}</h2>
           <p>
             {search
-              ? "Try a different search term."
-              : "Create your first note from the dashboard to see it here."}
+              ? t("tryDifferentSearch")
+              : t("createFirstNote")}
           </p>
           <Link href="/dashboard" className="notes-primary-link">
-            Go to Dashboard
+            {t("goToDashboard")}
           </Link>
         </div>
       ) : (
@@ -98,27 +104,33 @@ export default function AllNotesPage() {
           {filteredNotes.map((note) => (
             <article className="notes-list-card" key={note.id}>
               <div className="notes-list-card-top">
-                <h2>{note.title.trim() || "Untitled note"}</h2>
+                <h2>{note.title.trim() || t("untitledNote")}</h2>
 
                 <div className="notes-card-badges">
                   {note.isPinned && (
-                    <span className="notes-status-badge">📌 Pinned</span>
+                    <span className="notes-status-badge">
+                      📌 {t("pinned")}
+                    </span>
                   )}
                   {note.isFavorite && (
-                    <span className="notes-status-badge">♥ Favorite</span>
+                    <span className="notes-status-badge">
+                      ♥ {t("favorite")}
+                    </span>
                   )}
                 </div>
               </div>
 
               <p className="notes-card-content">
-                {note.content || "This note has no text yet."}
+                {note.content || t("noText")}
               </p>
 
               <p className="notes-card-date">
-                Updated{" "}
+                {t("updated")}{" "}
                 {note.updatedAt
-                  ? new Date(note.updatedAt).toLocaleString()
-                  : "recently"}
+                  ? new Date(note.updatedAt).toLocaleString(
+                      language === "am" ? "am-ET" : "en-US"
+                    )
+                  : t("recently")}
               </p>
             </article>
           ))}
