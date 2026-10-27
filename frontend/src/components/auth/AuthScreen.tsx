@@ -1,11 +1,13 @@
 
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import LanguageSwitcher from "../language/LanguageSwitcher";
 import { useLanguage } from "../language/LanguageProvider";
 import "../../styles/auth.css";
+import router from "next/dist/shared/lib/router/router";
 
 type AuthScreenProps = {
   mode: "signup" | "login";
@@ -67,32 +69,72 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
   const t = copy[language];
   const isSignup = mode === "signup";
 
+  const router = useRouter();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
+  event.preventDefault();
+  setMessage("");
 
-    if ((isSignup && !name.trim()) || !email.trim() || !password) {
-      setMessage(t.required);
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setMessage(t.invalidEmail);
-      return;
-    }
-
-    if (password.length < 8) {
-      setMessage(t.shortPassword);
-      return;
-    }
-
-    setMessage(t.demo);
+  if ((isSignup && !name.trim()) || !email.trim() || !password) {
+    setMessage(t.required);
+    return;
   }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setMessage(t.invalidEmail);
+    return;
+  }
+
+  if (password.length < 8) {
+    setMessage(t.shortPassword);
+    return;
+  }
+
+  if (isSignup) {
+    sessionStorage.setItem(
+      "mela-note-demo-account",
+      JSON.stringify({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+      })
+    );
+
+    router.push("/login");
+    return;
+  }
+
+  const savedAccount = sessionStorage.getItem("mela-note-demo-account");
+
+  if (!savedAccount) {
+    setMessage(
+      language === "am"
+        ? "እባክዎ መጀመሪያ መለያ ይፍጠሩ።"
+        : "Please create an account first."
+    );
+    return;
+  }
+
+  const account = JSON.parse(savedAccount);
+
+  if (email.trim().toLowerCase() !== account.email) {
+    setMessage(
+      language === "am"
+        ? "ያስገቡት ኢሜይል አይዛመድም።"
+        : "The email does not match the demo account."
+    );
+    return;
+  }
+
+  
+  sessionStorage.setItem("mela-note-demo-authenticated", "true");
+
+  router.push("/dashboard");
+}
 
   return (
     <main className="auth-scene" lang={language}>
