@@ -1,7 +1,17 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  House,
+  NotebookText,
+  Pin,
+  Heart,
+  Paperclip,
+  Archive,
+  Trash2,
+} from "lucide-react";
 
 type SidebarProps = {
   onNewNote: () => void;
@@ -10,10 +20,13 @@ type SidebarProps = {
 };
 
 const navigation = [
-  { label: "Dashboard", href: "/", icon: "⌂" },
-  { label: "Attachments", href: "/attachments", icon: "♧" },
-  { label: "Trash", href: "/trash", icon: "♜" },
-  { label: "Archive notes", href: "/archive", icon: "▣" },
+  { label: "Dashboard", href: "/", icon: House },
+  { label: "All Notes", href: "/notes", icon: NotebookText },
+  { label: "Pinned Notes", href: "/pinned", icon: Pin },
+  { label: "Favorites", href: "/favorites", icon: Heart },
+  { label: "Attachments", href: "/attachments", icon: Paperclip },
+  { label: "Archive", href: "/archive", icon: Archive },
+  { label: "Trash", href: "/trash", icon: Trash2 },
 ];
 
 export default function Sidebar({
@@ -27,26 +40,30 @@ export default function Sidebar({
     <aside
       className={`dashboard-sidebar ${isOpen ? "mobile-open" : ""}`}
     >
+      {/* Logo and brand name */}
       <Link
         href="/"
         className="dashboard-brand"
         onClick={onNavigate}
       >
-        <span className="dashboard-brand-icon">▤</span>
-        <span>Mela Notes</span>
+        <Image
+          src="/images/mela-note-logo.png"
+          alt="Mela Note logo"
+          width={48}
+          height={48}
+          priority
+          style={{
+            width: "48px",
+            height: "48px",
+            objectFit: "contain",
+            flexShrink: 0,
+          }}
+        />
+
+        <span className="dashboard-brand-name">Mela Note</span>
       </Link>
 
-      <button
-        type="button"
-        className="dashboard-new-note"
-        onClick={() => {
-          onNewNote();
-          onNavigate?.();
-        }}
-      >
-        + New note
-      </button>
-
+      {/* Navigation */}
       <nav className="dashboard-nav" aria-label="Main navigation">
         {navigation.map((item) => {
           const active =
@@ -54,6 +71,8 @@ export default function Sidebar({
               ? pathname === "/"
               : pathname === item.href ||
                 pathname.startsWith(`${item.href}/`);
+
+          const Icon = item.icon;
 
           return (
             <Link
@@ -63,10 +82,12 @@ export default function Sidebar({
               className={`dashboard-nav-link ${
                 active ? "active" : ""
               }`}
+              aria-current={active ? "page" : undefined}
             >
               <span className="dashboard-nav-icon" aria-hidden="true">
-                {item.icon}
+                <Icon size={18} strokeWidth={1.8} />
               </span>
+
               <span>{item.label}</span>
             </Link>
           );
@@ -75,23 +96,18 @@ export default function Sidebar({
 
       <div className="dashboard-sidebar-spacer" />
 
-      <div className="dashboard-storage">
-        <div className="dashboard-storage-label">
-          <span>Storage</span>
-          <span>2.4 GB of 6 GB</span>
-        </div>
-
-        <div
-          className="dashboard-storage-track"
-          role="progressbar"
-          aria-label="Storage used"
-          aria-valuemin={0}
-          aria-valuemax={6}
-          aria-valuenow={2.4}
-        >
-          <div className="dashboard-storage-fill" />
-        </div>
-      </div>
+      {/* New note button */}
+      <button
+        type="button"
+        className="dashboard-profile"
+        aria-label="Create a new note"
+        onClick={() => {
+          onNewNote();
+          onNavigate?.();
+        }}
+      >
+        N
+      </button>
     </aside>
   );
 }

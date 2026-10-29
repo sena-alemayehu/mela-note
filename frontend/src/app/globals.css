@@ -44,3 +44,28 @@ input {
   background: #c9d5ff;
   color: #202b55;
 }
+
+.dashboard-nav-icon {
+  width: 21px;
+  height: 21px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dashboard-nav-icon svg {
+  display: block;
+}
+
+.dashboard-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-nav-link.active {
+  background: rgba(255, 255, 255, 0.19);
+  color: #fff;
+  border-radius: 10px;
+}
