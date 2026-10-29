@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum NoteType {
+  TEXT
+  CHECKLIST
+}
+
+enum NoteStatus {
+  ACTIVE
+  ARCHIVED
+  TRASHED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique @db.VarChar(191)
+  name         String   @db.VarChar(120)
+  passwordHash String   @db.VarChar(255)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  notes        Note[]
+}
+
+model Note {
+  id          String     @id @default(cuid())
+  title       String     @default("") @db.VarChar(255)
+  content     String     @db.LongText
+  type        NoteType   @default(TEXT)
+  status      NoteStatus @default(ACTIVE)
+  color       String     @default("#FFFFFF") @db.VarChar(20)
+  isPinned    Boolean    @default(false)
+  labels      Json?
+  checklist   Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  archivedAt  DateTime?
+  trashedAt   DateTime?
+
+  userId      String     @db.VarChar(191)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  attachments Attachment[]
+
+  @@index([userId, status, updatedAt])
+  @@index([userId, isPinned])
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  fileName   String   @db.VarChar(255)
+  mimeType   String   @db.VarChar(191)
+  sizeBytes  BigInt
+  storageKey String   @unique @db.VarChar(255)
+  createdAt  DateTime @default(now())
+
+  noteId     String
+  note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
