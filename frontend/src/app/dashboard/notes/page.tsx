@@ -1,8 +1,11 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../components/language/LanguageProvider";
+import { apiRequest } from "../../../lib/api";
 import "../../../styles/notes.css";
 
 type Note = {
@@ -10,38 +13,55 @@ type Note = {
   title: string;
   content: string;
   updatedAt: string;
+  status: "ACTIVE" | "ARCHIVED" | "TRASHED";
   isFavorite?: boolean;
   isPinned?: boolean;
-  isArchived?: boolean;
-  isTrashed?: boolean;
 };
 
 export default function AllNotesPage() {
   const { language, t } = useLanguage();
+  const router = useRouter();
+
   const [notes, setNotes] = useState<Note[]>([]);
   const [search, setSearch] = useState("");
   const [ready, setReady] = useState(false);
+  const [feedback, setFeedback] = useState("");
 
   useEffect(() => {
-    try {
-      const savedNotes = localStorage.getItem("mela-note-demo-notes");
+    async function loadNotes() {
+      const token = localStorage.getItem("mela-note-access-token");
 
-      if (savedNotes) {
-        const parsed: Note[] = JSON.parse(savedNotes);
-        setNotes(Array.isArray(parsed) ? parsed : []);
+      if (!token) {
+        router.replace("/login");
+        return;
       }
-    } catch (error) {
-      console.error("Could not load saved notes:", error);
-    } finally {
-      setReady(true);
+
+      try {
+        const response = await apiRequest<Note[]>(
+          "/notes?status=ACTIVE",
+          token
+        );
+
+        setNotes(Array.isArray(response) ? response : []);
+      } catch (error) {
+        console.error("Could not load notes:", error);
+
+        setFeedback(
+          error instanceof Error
+            ? error.message
+            : "Could not load notes."
+        );
+      } finally {
+        setReady(true);
+      }
     }
-  }, []);
+
+    loadNotes();
+  }, [router]);
+
+  const query = search.trim().toLowerCase();
 
   const filteredNotes = notes.filter((note) => {
-    if (note.isTrashed || note.isArchived) return false;
-
-    const query = search.trim().toLowerCase();
-
     return (
       (note.title || "").toLowerCase().includes(query) ||
       (note.content || "").toLowerCase().includes(query)
@@ -49,7 +69,11 @@ export default function AllNotesPage() {
   });
 
   if (!ready) {
-    return <section className="notes-page">{t("loadingNotes")}</section>;
+    return (
+      <section className="notes-page" lang={language}>
+        {t("loadingNotes")}
+      </section>
+    );
   }
 
   return (
@@ -65,6 +89,12 @@ export default function AllNotesPage() {
           {t("backToDashboard")}
         </Link>
       </div>
+
+      {feedback && (
+        <p role="alert" className="notes-feedback">
+          {feedback}
+        </p>
+      )}
 
       <div className="notes-search-wrapper">
         <input
@@ -88,13 +118,18 @@ export default function AllNotesPage() {
 
       {filteredNotes.length === 0 ? (
         <div className="notes-empty-state">
-          <div className="notes-empty-icon">▤</div>
-          <h2>{search ? t("noMatchingNotes") : t("noNotesYet")}</h2>
+          <div className="notes-empty-icon">♧</div>
+
+          <h2>
+            {search ? t("noMatchingNotes") : t("noNotesYet")}
+          </h2>
+
           <p>
             {search
               ? t("tryDifferentSearch")
               : t("createFirstNote")}
           </p>
+
           <Link href="/dashboard" className="notes-primary-link">
             {t("goToDashboard")}
           </Link>
@@ -104,7 +139,9 @@ export default function AllNotesPage() {
           {filteredNotes.map((note) => (
             <article className="notes-list-card" key={note.id}>
               <div className="notes-list-card-top">
-                <h2>{note.title.trim() || t("untitledNote")}</h2>
+                <h2>
+                  {note.title.trim() || t("untitledNote")}
+                </h2>
 
                 <div className="notes-card-badges">
                   {note.isPinned && (
@@ -112,6 +149,7 @@ export default function AllNotesPage() {
                       📌 {t("pinned")}
                     </span>
                   )}
+
                   {note.isFavorite && (
                     <span className="notes-status-badge">
                       ♥ {t("favorite")}
