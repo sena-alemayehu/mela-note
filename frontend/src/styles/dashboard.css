@@ -1340,13 +1340,25 @@
   padding: 6px 14px;
   font-size: 12px;
   line-height: 1.2;
-}
-/* Sidebar logout: red text and icon */
-.sidebar-bottom .sidebar-logout {
-  color: #ff5d5d;
-  font-weight: 600;
+}/* Sidebar language switcher: unselected language in black */
+.sidebar-bottom
+  button:not(.sidebar-logout):not(.active):not(.selected):not(.is-active):not([aria-pressed="true"]):not([aria-current="true"]):not([aria-selected="true"]) {
+  color: #000000;
 }
 
-.sidebar-bottom .sidebar-logout:hover {
-  color: #ffc2c2;
+/* Sidebar language switcher: smaller size */
+.sidebar-bottom > :first-child {
+  width: fit-content;
+  min-height: 0;
+  height: auto;
+  padding: 3px;
+  gap: 2px;
+}
+
+.sidebar-bottom > :first-child button {
+  min-height: 0;
+  height: auto;
+  padding: 6px 14px;
+  font-size: 12px;
+  line-height: 1.2;
 }
