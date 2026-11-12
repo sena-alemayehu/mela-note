@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   ConflictException,
@@ -52,7 +53,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('An account with this email already exists.');
+      throw new ConflictException(
+        'An account with this email already exists.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -89,7 +92,11 @@ export class AuthService {
       email: user.email,
     });
 
-    return { message: 'Registration successful.', user, accessToken };
+    return {
+      message: 'Registration successful.',
+      user,
+      accessToken,
+    };
   }
 
   async login(body: Record<string, unknown>) {
@@ -97,11 +104,14 @@ export class AuthService {
       typeof body?.email === 'string'
         ? body.email.trim().toLowerCase()
         : '';
+
     const password =
       typeof body?.password === 'string' ? body.password : '';
 
     if (!email || !password) {
-      throw new BadRequestException('Email and password are required.');
+      throw new BadRequestException(
+        'Email and password are required.',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
