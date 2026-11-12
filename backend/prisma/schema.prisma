@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -37,6 +38,7 @@ model Note {
   status      NoteStatus @default(ACTIVE)
   color       String     @default("#FFFFFF") @db.VarChar(20)
   isPinned    Boolean    @default(false)
+  isFavorite  Boolean    @default(false)
   labels      Json?
   checklist   Json?
   createdAt   DateTime   @default(now())
@@ -51,6 +53,7 @@ model Note {
 
   @@index([userId, status, updatedAt])
   @@index([userId, isPinned])
+  @@index([userId, isFavorite])
 }
 
 model Attachment {
