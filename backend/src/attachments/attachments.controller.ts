@@ -13,9 +13,9 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { mkdirSync } from 'fs';
-import { randomUUID } from 'crypto';
-import { extname, join } from 'path';
+import { mkdir } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { extname } from 'node:path';
 import type { Request, Response } from 'express';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -36,8 +36,11 @@ export class AttachmentsController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: (_req, _file, callback) => {
-          mkdirSync(ATTACHMENT_UPLOAD_DIR, { recursive: true });
-          callback(null, ATTACHMENT_UPLOAD_DIR);
+          mkdir(ATTACHMENT_UPLOAD_DIR, { recursive: true })
+            .then(() => callback(null, ATTACHMENT_UPLOAD_DIR))
+            .catch((error: Error) =>
+              callback(error, ATTACHMENT_UPLOAD_DIR),
+            );
         },
         filename: (_req, file, callback) => {
           const extension = extname(file.originalname)

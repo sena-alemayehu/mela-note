@@ -8,6 +8,6 @@ import { AttachmentStorageService } from './attachment-storage.service';
   imports: [AuthModule],
   controllers: [AttachmentsController],
   providers: [AttachmentsService, AttachmentStorageService],
-  exports: [AttachmentsService],
+  exports: [AttachmentsService, AttachmentStorageService],
 })
 export class AttachmentsModule {}

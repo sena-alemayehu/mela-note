@@ -2,10 +2,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NoteStatus, NoteType } from '../generated/prisma/client';
+import { AttachmentStorageService } from '../attachments/attachment-storage.service';
 
 @Injectable()
 export class NotesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: AttachmentStorageService,
+  ) {}
 
   async create(
     userId: string,
@@ -181,6 +185,28 @@ export class NotesService {
   }
 
   async permanentlyDelete(userId: string, id: string) {
+    // Find the trashed note and collect its attachment storage keys
+    const note = await this.prisma.note.findFirst({
+      where: {
+        id,
+        userId,
+        status: NoteStatus.TRASHED,
+      },
+      select: {
+        id: true,
+        attachments: {
+          select: {
+            storageKey: true,
+          },
+        },
+      },
+    });
+
+    if (!note) {
+      throw new NotFoundException('Trashed note not found');
+    }
+
+    // Delete the note and its related attachment records
     const result = await this.prisma.note.deleteMany({
       where: {
         id,
@@ -191,6 +217,11 @@ export class NotesService {
 
     if (result.count === 0) {
       throw new NotFoundException('Trashed note not found');
+    }
+
+    // Remove the physical attachment files
+    for (const attachment of note.attachments) {
+      await this.storage.deleteFile(attachment.storageKey);
     }
 
     return { message: 'Note permanently deleted' };
