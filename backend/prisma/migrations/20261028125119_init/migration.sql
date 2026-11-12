@@ -1,3 +1,4 @@
+
 -- CreateTable
 CREATE TABLE `User` (
     `id` VARCHAR(191) NOT NULL,
@@ -49,7 +50,13 @@ CREATE TABLE `Attachment` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `Note` ADD CONSTRAINT `Note_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Note`
+ADD CONSTRAINT `Note_userId_fkey`
+FOREIGN KEY (`userId`) REFERENCES `User`(`id`)
+ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Attachment` ADD CONSTRAINT `Attachment_noteId_fkey` FOREIGN KEY (`noteId`) REFERENCES `Note`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `Attachment`
+ADD CONSTRAINT `Attachment_noteId_fkey`
+FOREIGN KEY (`noteId`) REFERENCES `Note`(`id`)
+ON DELETE CASCADE ON UPDATE CASCADE;

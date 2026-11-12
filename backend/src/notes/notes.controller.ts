@@ -8,11 +8,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { NoteType } from '../generated/prisma/client';
+import { NoteStatus, NoteType } from '../generated/prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { NotesService } from './notes.service';
 
@@ -33,26 +34,40 @@ export class NotesController {
     @Req() req: AuthenticatedRequest,
     @Body() body: Record<string, unknown>,
   ) {
-    if (typeof body.content !== 'string') {
-      throw new BadRequestException('Content must be a string.');
-    }
-
     this.validateOptionalFields(body, true);
 
     return this.notesService.create(req.user.sub, {
       title: body.title as string | undefined,
-      content: body.content,
+      content: body.content as string,
       type: body.type as NoteType | undefined,
       color: body.color as string | undefined,
       isPinned: body.isPinned as boolean | undefined,
+      isFavorite: body.isFavorite as boolean | undefined,
       labels: body.labels as string[] | undefined,
       checklist: body.checklist,
     });
   }
 
   @Get()
-  findAll(@Req() req: AuthenticatedRequest) {
-    return this.notesService.findAll(req.user.sub);
+  findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query('status') status?: string,
+  ) {
+    const allowedStatuses = ['ACTIVE', 'ARCHIVED', 'TRASHED'];
+
+    if (status && !allowedStatuses.includes(status)) {
+      throw new BadRequestException('Invalid note status');
+    }
+
+    return this.notesService.findAll(
+      req.user.sub,
+      (status as NoteStatus) || NoteStatus.ACTIVE,
+    );
+  }
+
+  @Get('favorites')
+  findFavorites(@Req() req: AuthenticatedRequest) {
+    return this.notesService.findFavorites(req.user.sub);
   }
 
   @Get(':id')
@@ -76,6 +91,7 @@ export class NotesController {
       content: body.content as string | undefined,
       color: body.color as string | undefined,
       isPinned: body.isPinned as boolean | undefined,
+      isFavorite: body.isFavorite as boolean | undefined,
       labels: body.labels as string[] | undefined,
       checklist: body.checklist,
     });
@@ -133,10 +149,7 @@ export class NotesController {
       throw new BadRequestException('Content must be a string.');
     }
 
-    if (
-      creating &&
-      typeof body.content !== 'string'
-    ) {
+    if (creating && typeof body.content !== 'string') {
       throw new BadRequestException('Content is required.');
     }
 
@@ -163,6 +176,13 @@ export class NotesController {
       typeof body.isPinned !== 'boolean'
     ) {
       throw new BadRequestException('isPinned must be a boolean.');
+    }
+
+    if (
+      body.isFavorite !== undefined &&
+      typeof body.isFavorite !== 'boolean'
+    ) {
+      throw new BadRequestException('isFavorite must be a boolean.');
     }
 
     if (

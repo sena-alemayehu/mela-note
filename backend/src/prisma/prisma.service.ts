@@ -1,3 +1,4 @@
+
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '../generated/prisma/client';
@@ -10,6 +11,7 @@ function createAdapter() {
   }
 
   const url = new URL(connectionString);
+  const isLocalDatabase = url.hostname.toLowerCase() === 'localhost';
 
   return new PrismaMariaDb({
     host: url.hostname,
@@ -18,6 +20,7 @@ function createAdapter() {
     password: decodeURIComponent(url.password),
     database: url.pathname.replace(/^\//, ''),
     connectionLimit: 5,
+    allowPublicKeyRetrieval: isLocalDatabase,
   });
 }
 
