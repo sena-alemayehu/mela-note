@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import type { ChangeEvent, DragEvent, FormEvent } from "react";
 import { useLanguage } from "../language/LanguageProvider";
 
 export type NoteAttachment = {
@@ -9,7 +10,8 @@ export type NoteAttachment = {
   name: string;
   type: string;
   size: number;
-  dataUrl: string;
+  dataUrl?: string;
+  file?: File;
 };
 
 export type Note = {
@@ -75,13 +77,24 @@ const translations = {
   },
 };
 
-export default function NoteEditor({
+type Language = keyof typeof translations;
+
+export default function NoteEditor(props: NoteEditorProps) {
+  return (
+    <NoteEditorForm
+      key={props.note?.id ?? "new-note"}
+      {...props}
+    />
+  );
+}
+
+function NoteEditorForm({
   note,
   onSave,
   onCancel,
 }: NoteEditorProps) {
   const { language } = useLanguage();
-  const t = translations[language];
+  const t = translations[language as Language];
 
   const [title, setTitle] = useState(note?.title ?? "");
   const [content, setContent] = useState(note?.content ?? "");
@@ -89,83 +102,62 @@ export default function NoteEditor({
     note?.attachments ?? []
   );
   const [attachmentError, setAttachmentError] = useState("");
-const [isDragging, setIsDragging] = useState(false);
-  useEffect(() => {
-    setTitle(note?.title ?? "");
-    setContent(note?.content ?? "");
-    setAttachments(note?.attachments ?? []);
+  const [isDragging, setIsDragging] = useState(false);
+
+  function handleFiles(files: FileList | File[]) {
     setAttachmentError("");
-  }, [note]);
 
- function handleFiles(files: FileList | File[]) {
-  setAttachmentError("");
+    const selectedFiles = Array.from(files);
 
-  const selectedFiles = Array.from(files);
+    const validFiles = selectedFiles.filter((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        setAttachmentError(
+          language === "am"
+            ? "የእያንዳንዱ ፋይል መጠን ከ25 MB መብለጥ የለበትም።"
+            : `${file.name} is larger than 25 MB.`
+        );
+        return false;
+      }
 
-  selectedFiles.forEach((file) => {
-    if (file.size > MAX_FILE_SIZE) {
-      setAttachmentError(
-        language === "am"
-          ? "የእያንዳንዱ ፋይል መጠን ከ25 MB መብለጥ የለበትም።"
-          : "Each file must be 25 MB or smaller."
-      );
-      return;
+      return true;
+    });
+
+    setAttachments((previous) => [
+      ...previous,
+      ...validFiles.map((file) => ({
+        id: crypto.randomUUID(),
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        file,
+      })),
+    ]);
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    if (event.target.files) {
+      handleFiles(event.target.files);
     }
 
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return;
-
-      setAttachments((previous) => [
-        ...previous,
-        {
-          id: crypto.randomUUID(),
-          name: file.name,
-          type: file.type || "application/octet-stream",
-          size: file.size,
-          dataUrl: reader.result as string,
-        },
-      ]);
-    };
-
-    reader.onerror = () => {
-      setAttachmentError(
-        language === "am"
-          ? "ፋይሉን ማንበብ አልተቻለም።"
-          : `Could not read ${file.name}. Please try again.`
-      );
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-function handleFileChange(
-  event: React.ChangeEvent<HTMLInputElement>
-) {
-  if (event.target.files) {
-    handleFiles(event.target.files);
+    event.target.value = "";
   }
 
-  event.target.value = "";
-}
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(false);
 
-function handleDrop(event: React.DragEvent<HTMLDivElement>) {
-  event.preventDefault();
-  setIsDragging(false);
-
-  if (event.dataTransfer.files.length > 0) {
-    handleFiles(event.dataTransfer.files);
+    if (event.dataTransfer.files.length > 0) {
+      handleFiles(event.dataTransfer.files);
+    }
   }
-}
+
   function handleRemoveAttachment(attachmentId: string) {
     setAttachments((current) =>
       current.filter((file) => file.id !== attachmentId)
     );
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!title.trim() && !content.trim() && attachments.length === 0) {
@@ -246,50 +238,58 @@ function handleDrop(event: React.DragEvent<HTMLDivElement>) {
             <h3>{t.attachments}</h3>
 
             <div
-  className={`note-dropzone ${isDragging ? "is-dragging" : ""}`}
-  onDragEnter={(event) => {
-    event.preventDefault();
-    setIsDragging(true);
-  }}
-  onDragOver={(event) => {
-    event.preventDefault();
-    setIsDragging(true);
-  }}
-  onDragLeave={(event) => {
-    event.preventDefault();
+              className={`note-dropzone ${isDragging ? "is-dragging" : ""}`}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={(event) => {
+                event.preventDefault();
 
-    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
-  }}
-  onDrop={handleDrop}
->
-  <div className="note-dropzone-icon" aria-hidden="true">
-    ↑
-  </div>
+                if (
+                  !event.currentTarget.contains(
+                    event.relatedTarget as Node
+                  )
+                ) {
+                  setIsDragging(false);
+                }
+              }}
+              onDrop={handleDrop}
+            >
+              <div className="note-dropzone-icon" aria-hidden="true">
+                ↑
+              </div>
 
-  <p>
-    {language === "am"
-      ? "ፋይሎችን እዚህ ይጎትቱና ይልቀቁ፣ ወይም"
-      : "Drag files here to attach, or"}
-  </p>
+              <p>
+                {language === "am"
+                  ? "ፋይሎችን እዚህ ይጎትቱና ይልቀቁ፣ ወይም"
+                  : "Drag files here to attach, or"}
+              </p>
 
-  <label className="note-attachment-picker">
-    {language === "am" ? "ፋይል ይምረጡ" : "Browse"}
-    <input
-      type="file"
-      multiple
-      onChange={handleFileChange}
-      aria-label={language === "am" ? "ፋይሎችን ይምረጡ" : "Choose files"}
-    />
-  </label>
+              <label className="note-attachment-picker">
+                {language === "am" ? "ፋይል ይምረጡ" : "Browse"}
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileChange}
+                  aria-label={
+                    language === "am"
+                      ? "ፋይሎችን ይምረጡ"
+                      : "Choose files"
+                  }
+                />
+              </label>
 
-  <span className="note-dropzone-limit">
-    {language === "am"
-      ? "እስከ 25 MB በእያንዳንዱ ፋይል"
-      : "Up to 25 MB per file"}
-  </span>
-</div>
+              <span className="note-dropzone-limit">
+                {language === "am"
+                  ? "እስከ 25 MB በእያንዳንዱ ፋይል"
+                  : "Up to 25 MB per file"}
+              </span>
+            </div>
 
             {attachmentError && (
               <p role="alert" className="note-attachment-error">
@@ -303,13 +303,19 @@ function handleDrop(event: React.DragEvent<HTMLDivElement>) {
               <ul className="note-attachment-list">
                 {attachments.map((file) => (
                   <li key={file.id} className="note-attachment-item">
-                    <a
-                      href={file.dataUrl}
-                      download={file.name}
-                      className="note-attachment-name"
-                    >
-                      {file.name}
-                    </a>
+                    {file.dataUrl ? (
+                      <a
+                        href={file.dataUrl}
+                        download={file.name}
+                        className="note-attachment-name"
+                      >
+                        {file.name}
+                      </a>
+                    ) : (
+                      <span className="note-attachment-name">
+                        {file.name}
+                      </span>
+                    )}
 
                     <span className="note-attachment-size">
                       {Math.max(1, Math.round(file.size / 1024))} KB
@@ -342,7 +348,10 @@ function handleDrop(event: React.DragEvent<HTMLDivElement>) {
                 {t.cancel}
               </button>
 
-              <button type="submit" className="note-editor-save">
+              <button
+                type="submit"
+                className="note-editor-save"
+              >
                 {t.save}
               </button>
             </div>

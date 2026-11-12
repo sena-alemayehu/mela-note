@@ -1,14 +1,33 @@
-
 "use client";
 
+import { apiRequest } from "../../lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import NoteEditor, { type Note } from "../../components/notes/NoteEditor";
 import LanguageSwitcher from "../../components/language/LanguageSwitcher";
+import ThemeToggle from "../../components/theme/ThemeToggle";
 import { useLanguage } from "../../components/language/LanguageProvider";
 import "../../styles/dashboard.css";
 import "../../styles/notes.css";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+function mapApiNote(apiNote: any): Note {
+  return {
+    id: apiNote.id,
+    title: apiNote.title,
+    content: apiNote.content,
+    updatedAt: apiNote.updatedAt,
+    isPinned: apiNote.isPinned,
+    isArchived: apiNote.status === "ARCHIVED",
+    isTrashed: apiNote.status === "TRASHED",
+    isFavorite: apiNote.isFavorite ?? false,
+    attachments: [],
+  };
+}
 
 const copy = {
   en: {
@@ -55,8 +74,8 @@ const copy = {
     emptyFavorites: "You have no favorite notes yet.",
     emptyTrash: "Your Trash is empty.",
     confirmPermanentDelete:
-  "Permanently delete this note? This action cannot be undone.",
-    attachment: "attachment", 
+      "Permanently delete this note? This action cannot be undone.",
+    attachment: "attachment",
     attachmentSearch: "Search by file name or note",
     upload: "Upload",
     dropFiles: "Drag files here to attach, or",
@@ -76,6 +95,7 @@ const copy = {
     attachedTo: "Attached to",
     download: "Download",
   },
+
   am: {
     eyebrow: "የእርስዎ የግል የሥራ ቦታ",
     greeting: "እንደምን አደሩ",
@@ -121,8 +141,7 @@ const copy = {
     emptyFavorites: "ገና ተወዳጅ ማስታወሻዎች የሉዎትም።",
     emptyTrash: "መጣያው ባዶ ነው።",
     confirmPermanentDelete:
-  "ይህን ማስታወሻ ለዘላለም መሰረዝ ይፈልጋሉ? ይህ እርምጃ መመለስ አይቻልም።",
-  },
+      "ይህን ማስታወሻ ለዘላለም መሰረዝ ይፈልጋሉ? ይህ እርምጃ መመለስ አይቻልም።",
     attachmentSearch: "በፋይል ስም ወይም በማስታወሻ ይፈልጉ",
     upload: "ጫን",
     dropFiles: "ፋይሎችን እዚህ ይጎትቱና ይልቀቁ፣ ወይም",
@@ -141,46 +160,17 @@ const copy = {
     noAttachmentsDescription: "እዚህ ለማየት ፋይሎችን ከማስታወሻዎችዎ ጋር ያያይዙ።",
     attachedTo: "የተያያዘው ከ",
     download: "አውርድ",
+  },
 };
 
 export default function DashboardPage() {
   const router = useRouter();
   const { language } = useLanguage();
   const t = copy[language];
+
   const [currentHour, setCurrentHour] = useState<number | null>(null);
-  const greeting = (() => {
-  if (currentHour === null) {
-    return "";
-  }
-
-  if (currentHour >= 5 && currentHour < 12) {
-    return language === "am" ? "እንደምን አደሩ" : "Good morning";
-  }
-
-  if (currentHour >= 12 && currentHour < 17) {
-    return language === "am" ? "እንደምን ዋሉ" : "Good afternoon";
-  }
-
-  if (currentHour >= 17 && currentHour < 21) {
-    return language === "am" ? "እንደምን አመሹ" : "Good evening";
-  }
-
-  return language === "am" ? "መልካም ሌሊት" : "Good night";
-})();
   const [ready, setReady] = useState(false);
   const [accountName, setAccountName] = useState("User");
-
-useEffect(() => {
-  const updateHour = () => {
-    setCurrentHour(new Date().getHours());
-  };
-
-  updateHour();
-
-  const intervalId = window.setInterval(updateHour, 60_000);
-
-  return () => window.clearInterval(intervalId);
-}, []);
   const [notes, setNotes] = useState<Note[]>([]);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -188,167 +178,332 @@ useEffect(() => {
   const [feedback, setFeedback] = useState("");
 
   const storageKey = "mela-note-demo-notes";
-  
-  
-const [activeView, setActiveView] = useState<
-  "all" | "favorites" | "trash" | "attachments"
->("all");
 
-const [attachmentSearch, setAttachmentSearch] = useState("");
-const [attachmentFilter, setAttachmentFilter] = useState<
-  "all" | "images" | "pdfs" | "documents" | "audio"
->("all");
-const [attachmentLayout, setAttachmentLayout] = useState<
-  "grid" | "list"
->("grid");
-const [attachmentSort, setAttachmentSort] = useState<
-  "newest" | "oldest"
->("newest");
+  const [activeView, setActiveView] = useState<
+    "all" | "favorites" | "trash" | "attachments"
+  >("all");
+
+  const [attachmentSearch, setAttachmentSearch] = useState("");
+  const [attachmentFilter, setAttachmentFilter] = useState<
+    "all" | "images" | "pdfs" | "documents" | "audio"
+  >("all");
+
+  const [attachmentLayout, setAttachmentLayout] = useState<"grid" | "list">(
+    "grid"
+  );
+
+  const [attachmentSort, setAttachmentSort] = useState<"newest" | "oldest">(
+    "newest"
+  );
+
+  const greeting = (() => {
+    if (currentHour === null) {
+      return "";
+    }
+
+    if (currentHour >= 5 && currentHour < 12) {
+      return language === "am" ? "እንደምን አደሩ" : "Good morning";
+    }
+
+    if (currentHour >= 12 && currentHour < 17) {
+      return language === "am" ? "እንደምን ዋሉ" : "Good afternoon";
+    }
+
+    if (currentHour >= 17 && currentHour < 21) {
+      return language === "am" ? "እንደምን አመሹ" : "Good evening";
+    }
+
+    return language === "am" ? "መልካም ሌሊት" : "Good night";
+  })();
+
   useEffect(() => {
-    const authenticated = sessionStorage.getItem(
-      "mela-note-demo-authenticated"
-    );
-    const savedAccount = sessionStorage.getItem("mela-note-demo-account");
+    setCurrentHour(new Date().getHours());
 
-    if (authenticated !== "true" || !savedAccount) {
-      router.replace("/login");
+    async function loadDashboard() {
+      const token = localStorage.getItem("mela-note-access-token");
+
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        const savedUser = localStorage.getItem("mela-note-user");
+
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          setAccountName(user.name || "User");
+        }
+
+        const response = await apiRequest<any[]>("/notes", token);
+        setNotes(response.map(mapApiNote));
+      } catch (error) {
+        console.error("Dashboard loading error:", error);
+        setFeedback(
+          error instanceof Error ? error.message : "Unable to load notes."
+        );
+      } finally {
+        setReady(true);
+      }
+    }
+
+    loadDashboard();
+  }, [router]);
+
+  const handleSave = async (note: Note) => {
+    const token = localStorage.getItem("mela-note-access-token");
+
+    if (!token) {
+      router.push("/login");
       return;
     }
 
     try {
-      const account = JSON.parse(savedAccount);
-      setAccountName(account.name || "User");
+      // Keep the original File objects selected in NoteEditor.
+      const pendingFiles = (note.attachments ?? [])
+        .map((attachment) => ({
+          name: attachment.name,
+          file: (
+            attachment as typeof attachment & { file?: File }
+          ).file,
+        }))
+        .filter(
+          (attachment): attachment is { name: string; file: File } =>
+            attachment.file instanceof File
+        );
 
-      const savedNotes = localStorage.getItem(storageKey);
-      if (savedNotes) {
-        const parsed: unknown = JSON.parse(savedNotes);
-        if (Array.isArray(parsed)) {
-          setNotes(parsed as Note[]);
+      // Save the note first so we have its backend ID.
+      const savedNote = editingNote
+        ? await apiRequest<any>(`/notes/${editingNote.id}`, token, {
+            method: "PATCH",
+            body: JSON.stringify({
+              title: note.title,
+              content: note.content,
+            }),
+          })
+        : await apiRequest<any>("/notes", token, {
+            method: "POST",
+            body: JSON.stringify({
+              title: note.title,
+              content: note.content,
+              type: "TEXT",
+            }),
+          });
+
+      const mappedNote = mapApiNote(savedNote);
+
+      setNotes((previous) =>
+        editingNote
+          ? previous.map((item) =>
+              item.id === mappedNote.id ? mappedNote : item
+            )
+          : [mappedNote, ...previous]
+      );
+
+      // Upload the selected files to the backend.
+      const failedUploads: string[] = [];
+
+      for (const attachment of pendingFiles) {
+        if (attachment.file.size > MAX_FILE_SIZE) {
+          failedUploads.push(
+            `${attachment.name} (larger than 25 MB)`
+          );
+          continue;
+        }
+
+        const formData = new FormData();
+        formData.append("file", attachment.file);
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/attachments/notes/${savedNote.id}`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              body: formData,
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+
+            throw new Error(
+              errorData?.message || `Upload failed (${response.status})`
+            );
+          }
+        } catch (uploadError) {
+          console.error(
+            `Attachment upload failed: ${attachment.name}`,
+            uploadError
+          );
+
+          failedUploads.push(attachment.name);
         }
       }
 
-      setReady(true);
-    } catch {
-      sessionStorage.removeItem("mela-note-demo-authenticated");
-      router.replace("/login");
-    }
-  }, [router]);
+      setEditingNote(null);
+      setEditorOpen(false);
 
-  function handleSave(note: Note) {
-    const updatedNotes = [
-      note,
-      ...notes.filter((item) => item.id !== note.id),
-    ];
+      if (failedUploads.length > 0) {
+        setFeedback(
+          `Note saved, but these attachments could not be uploaded: ${failedUploads.join(
+            ", "
+          )}.`
+        );
+      } else if (pendingFiles.length > 0) {
+        setFeedback(
+          `Note saved and ${pendingFiles.length} attachment(s) uploaded successfully.`
+        );
+      } else {
+        setFeedback("Note saved successfully.");
+      }
+    } catch (error) {
+      console.error("Saving note failed:", error);
+
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to save note."
+      );
+    }
+  };
+
+  const handleDelete = async (noteId: string) => {
+    const token = localStorage.getItem("mela-note-access-token");
+    if (!token) return;
+
+    try {
+      await apiRequest(`/notes/${noteId}/trash`, token, {
+        method: "PATCH",
+      });
+
+      setNotes((previous) =>
+        previous.filter((note) => note.id !== noteId)
+      );
+
+      setFeedback("Note moved to Trash.");
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to delete note."
+      );
+    }
+  };
+
+  const handleToggleFavorite = async (noteId: string) => {
+    const token = localStorage.getItem("mela-note-access-token");
+
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    const selectedNote = notes.find((note) => note.id === noteId);
+    if (!selectedNote) return;
+
+    try {
+      const updatedNote = await apiRequest<any>(
+        `/notes/${noteId}`,
+        token,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            isFavorite: !selectedNote.isFavorite,
+          }),
+        }
+      );
+
+      const mappedNote = mapApiNote(updatedNote);
+
+      setNotes((previous) =>
+        previous.map((note) =>
+          note.id === noteId ? mappedNote : note
+        )
+      );
+
+      setFeedback(
+        mappedNote.isFavorite
+          ? "Note added to Favorites."
+          : "Note removed from Favorites."
+      );
+    } catch (error) {
+      console.error("Favorite update failed:", error);
+
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Unable to update favorite."
+      );
+    }
+  };
+
+  const handleTogglePinned = async (noteId: string) => {
+    const token = localStorage.getItem("mela-note-access-token");
+    if (!token) return;
+
+    const selectedNote = notes.find((note) => note.id === noteId);
+    if (!selectedNote) return;
+
+    try {
+      const updatedNote = await apiRequest<any>(`/notes/${noteId}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({
+          isPinned: !selectedNote.isPinned,
+        }),
+      });
+
+      const mappedNote = mapApiNote(updatedNote);
+
+      setNotes((previous) =>
+        previous.map((note) =>
+          note.id === noteId ? mappedNote : note
+        )
+      );
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to pin note."
+      );
+    }
+  };
+
+  const handleArchive = async (noteId: string) => {
+    const token = localStorage.getItem("mela-note-access-token");
+    if (!token) return;
+
+    try {
+      await apiRequest(`/notes/${noteId}/archive`, token, {
+        method: "PATCH",
+      });
+
+      setNotes((previous) =>
+        previous.filter((note) => note.id !== noteId)
+      );
+
+      setFeedback("Note archived successfully.");
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : "Unable to archive note."
+      );
+    }
+  };
+
+  function handleRestore(noteId: string) {
+    const updatedNotes = notes.map((note) =>
+      note.id === noteId ? { ...note, isTrashed: false } : note
+    );
 
     setNotes(updatedNotes);
     localStorage.setItem(storageKey, JSON.stringify(updatedNotes));
-    setEditorOpen(false);
-    setEditingNote(null);
-    setFeedback(t.saved);
   }
 
- function handleDelete(noteId: string) {
-  const updatedNotes = notes.map((note) =>
-    note.id === noteId
-      ? { ...note, isTrashed: true }
-      : note
-  );
+  function handleDeletePermanently(noteId: string) {
+    if (!window.confirm(t.confirmPermanentDelete)) {
+      return;
+    }
 
-  setNotes(updatedNotes);
-  localStorage.setItem(
-    "mela-note-demo-notes",
-    JSON.stringify(updatedNotes)
-  );
-}
+    const updatedNotes = notes.filter((note) => note.id !== noteId);
 
-function handleToggleFavorite(noteId: string) {
-  const updatedNotes = notes.map((note) =>
-    note.id === noteId
-      ? { ...note, isFavorite: !note.isFavorite }
-      : note
-  );
-
-  setNotes(updatedNotes);
-  localStorage.setItem(
-    "mela-note-demo-notes",
-    JSON.stringify(updatedNotes)
-  );
-}
-
-
-function handleTogglePinned(noteId: string) {
-  const updatedNotes = notes.map((note) =>
-    note.id === noteId
-      ? {
-          ...note,
-          isPinned: !note.isPinned,
-          updatedAt: new Date().toISOString(),
-        }
-      : note
-  );
-
-  setNotes(updatedNotes);
-
-  localStorage.setItem(
-    "mela-note-demo-notes",
-    JSON.stringify(updatedNotes)
-  );
-}
-
-
-function handleArchive(noteId: string) {
-  const updatedNotes = notes.map((note) =>
-    note.id === noteId
-      ? {
-          ...note,
-          isArchived: true,
-          updatedAt: new Date().toISOString(),
-        }
-      : note
-  );
-
-  setNotes(updatedNotes);
-
-  localStorage.setItem(
-    "mela-note-demo-notes",
-    JSON.stringify(updatedNotes)
-  );
-}
-
-
-function handleRestore(noteId: string) {
-  const updatedNotes = notes.map((note) =>
-    note.id === noteId
-      ? { ...note, isTrashed: false }
-      : note
-  );
-
-  setNotes(updatedNotes);
-  localStorage.setItem(
-    "mela-note-demo-notes",
-    JSON.stringify(updatedNotes)
-  );
-}
-
-function handleDeletePermanently(noteId: string) {
-  if (!window.confirm(t.confirmPermanentDelete)) {
-    return;
-  }
-
-  const updatedNotes = notes.filter(
-    (note) => note.id !== noteId
-  );
-
-  setNotes(updatedNotes);
-  localStorage.setItem(
-    "mela-note-demo-notes",
-    JSON.stringify(updatedNotes)
-  );
-}
-
-  function handleLogout() {
-    sessionStorage.removeItem("mela-note-demo-authenticated");
-    router.replace("/login");
+    setNotes(updatedNotes);
+    localStorage.setItem(storageKey, JSON.stringify(updatedNotes));
   }
 
   function openNewNote() {
@@ -363,116 +518,120 @@ function handleDeletePermanently(noteId: string) {
     setFeedback("");
   }
 
-  
-const filteredNotes = notes.filter((note) => {
+  const filteredNotes = notes.filter((note) => {
+    if (activeView === "trash") {
+      return note.isTrashed === true;
+    }
 
-  if (activeView === "trash") {
-    return note.isTrashed === true;
-  }
+    if (note.isTrashed === true || note.isArchived === true) {
+      return false;
+    }
 
- 
-  if (note.isTrashed === true) {
-    return false;
-  }
-if (note.isArchived === true) return false;
+    if (activeView === "favorites" && !note.isFavorite) {
+      return false;
+    }
 
-  if (activeView === "favorites" && !note.isFavorite) {
-    return false;
-  }
+    const query = search.trim().toLowerCase();
 
+    return (
+      (note.title || "").toLowerCase().includes(query) ||
+      (note.content || "").toLowerCase().includes(query)
+    );
+  });
 
-  const query = search.trim().toLowerCase();
-
-  return (
-    note.title.toLowerCase().includes(query) ||
-    note.content.toLowerCase().includes(query)
-  );
-});
-const allAttachments = notes
-  .filter((note) => !note.isTrashed)
-  .flatMap((note) =>
-    (note.attachments ?? []).map((attachment) => ({
-      ...attachment,
-      noteId: note.id,
-      noteTitle: note.title || t.untitled,
-      noteUpdatedAt: note.updatedAt,
-    }))
-  );
-
-function getAttachmentCategory(type: string, name: string) {
-  const extension = name.split(".").pop()?.toLowerCase() ?? "";
-
-  if (type.startsWith("image/")) return "images";
-  if (type === "application/pdf" || extension === "pdf") return "pdfs";
-
-  if (
-    type.startsWith("audio/") ||
-    ["mp3", "wav", "m4a", "ogg", "aac", "flac"].includes(extension)
-  ) {
-    return "audio";
-  }
-
-  if (
-    type.includes("document") ||
-    type.includes("word") ||
-    type.includes("spreadsheet") ||
-    type.includes("presentation") ||
-    ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "csv"].includes(extension)
-  ) {
-    return "documents";
-  }
-
-  return "other";
-}
-
-const filteredAttachments = allAttachments
-  .filter((attachment) => {
-    const query = attachmentSearch.trim().toLowerCase();
-
-    const matchesSearch =
-      attachment.name.toLowerCase().includes(query) ||
-      attachment.noteTitle.toLowerCase().includes(query);
-
-    const category = getAttachmentCategory(
-      attachment.type,
-      attachment.name
+  const allAttachments = notes
+    .filter((note) => !note.isTrashed)
+    .flatMap((note) =>
+      (note.attachments ?? []).map((attachment) => ({
+        ...attachment,
+        noteId: note.id,
+        noteTitle: note.title || t.untitled,
+        noteUpdatedAt: note.updatedAt,
+      }))
     );
 
-    const matchesFilter =
-      attachmentFilter === "all" ||
-      category === attachmentFilter;
+  function getAttachmentCategory(type: string, name: string) {
+    const extension = name.split(".").pop()?.toLowerCase() ?? "";
 
-    return matchesSearch && matchesFilter;
-  })
-  .sort((a, b) => {
-    const difference =
-      new Date(a.noteUpdatedAt).getTime() -
-      new Date(b.noteUpdatedAt).getTime();
+    if (type.startsWith("image/")) {
+      return "images";
+    }
 
-    return attachmentSort === "newest" ? -difference : difference;
-  });
+    if (type === "application/pdf" || extension === "pdf") {
+      return "pdfs";
+    }
+
+    if (
+      type.startsWith("audio/") ||
+      ["mp3", "wav", "m4a", "ogg", "aac", "flac"].includes(extension)
+    ) {
+      return "audio";
+    }
+
+    if (
+      type.includes("document") ||
+      type.includes("word") ||
+      type.includes("spreadsheet") ||
+      type.includes("presentation") ||
+      ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "csv"].includes(
+        extension
+      )
+    ) {
+      return "documents";
+    }
+
+    return "other";
+  }
+
+  const filteredAttachments = allAttachments
+    .filter((attachment) => {
+      const query = attachmentSearch.trim().toLowerCase();
+
+      const matchesSearch =
+        attachment.name.toLowerCase().includes(query) ||
+        attachment.noteTitle.toLowerCase().includes(query);
+
+      const category = getAttachmentCategory(
+        attachment.type,
+        attachment.name
+      );
+
+      const matchesFilter =
+        attachmentFilter === "all" || category === attachmentFilter;
+
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      const difference =
+        new Date(a.noteUpdatedAt).getTime() -
+        new Date(b.noteUpdatedAt).getTime();
+
+      return attachmentSort === "newest" ? -difference : difference;
+    });
 
   if (!ready) {
     return <main className="dashboard-loading">{t.loading}</main>;
   }
 
-
-
   return (
     <>
-
       <section className="dashboard-main">
         <header className="dashboard-header">
           <div>
             <p className="dashboard-eyebrow">{t.eyebrow}</p>
-           <h1>
-  {greeting ? `${greeting}, ${accountName}!` : `${accountName}!`}
-</h1>
+
+            <h1>
+              {greeting ? `${greeting}, ${accountName}!` : `${accountName}!`}
+            </h1>
+
             <p className="dashboard-subtitle">{t.subtitle}</p>
           </div>
 
           <div className="dashboard-header-actions">
             <LanguageSwitcher />
+
+            <ThemeToggle className="header-theme-toggle" />
+
             <div className="dashboard-avatar">
               {accountName.charAt(0).toUpperCase()}
             </div>
@@ -482,8 +641,11 @@ const filteredAttachments = allAttachments
         <section className="dashboard-welcome-card">
           <div>
             <span className="dashboard-card-label">{t.bannerLabel}</span>
+
             <h2>{t.bannerTitle}</h2>
+
             <p>{t.bannerText}</p>
+
             <button
               className="dashboard-create-button"
               type="button"
@@ -505,66 +667,66 @@ const filteredAttachments = allAttachments
           </div>
 
           <div className="dashboard-feature-grid">
-            
-<button
-  className="dashboard-feature-card dashboard-feature-button"
-  type="button"
-  onClick={() => {
-    setActiveView("favorites");
-    document.getElementById("my-notes")?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }}
->
-  <div className="dashboard-feature-icon yellow">☆</div>
-  <h3>{t.favorites}</h3>
-  <p>{t.favoriteDescription}</p>
-  <span>{t.quickAccess} →</span>
-</button>
+            <button
+              className="dashboard-feature-card dashboard-feature-button"
+              type="button"
+              onClick={() => {
+                setActiveView("favorites");
 
+                document.getElementById("my-notes")?.scrollIntoView({
+                  behavior: "smooth",
+                });
+              }}
+            >
+              <div className="dashboard-feature-icon yellow">☆</div>
+              <h3>{t.favorites}</h3>
+              <p>{t.favoriteDescription}</p>
+              <span>{t.quickAccess} →</span>
+            </button>
 
-            
-<button
-  className="dashboard-feature-card dashboard-feature-button"
-  type="button"
-  onClick={() => {
-    setActiveView("all");
-    document.getElementById("my-notes")?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }}
->
-  <div className="dashboard-feature-icon purple">▤</div>
-  <h3>{t.notes}</h3>
-  <p>{t.noteDescription}</p>
-  <span>{notes.filter((note) => !note.isTrashed).length} {t.noteCount} →</span>
-</button>
+            <button
+              className="dashboard-feature-card dashboard-feature-button"
+              type="button"
+              onClick={() => {
+                setActiveView("all");
 
+                document.getElementById("my-notes")?.scrollIntoView({
+                  behavior: "smooth",
+                });
+              }}
+            >
+              <div className="dashboard-feature-icon purple">▤</div>
+              <h3>{t.notes}</h3>
+              <p>{t.noteDescription}</p>
+              <span>
+                {notes.filter((note) => !note.isTrashed).length} {t.noteCount} →
+              </span>
+            </button>
 
-            
-<button
-  className="dashboard-feature-card dashboard-feature-button"
-  type="button"
-  onClick={() => {
-    setActiveView("attachments");
-    document.getElementById("my-notes")?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }}
->
-  <div className="dashboard-feature-icon blue">⌁</div>
-  <h3>{t.attachments}</h3>
-  <p>{t.attachmentsDescription}</p>
-  <span>
-    {notes.reduce(
-      (total, note) =>
-        total +
-        (note.isTrashed ? 0 : note.attachments?.length ?? 0),
-      0
-    )}{" "}
-    {t.attachments} →
-  </span>
-</button>
+            <button
+              className="dashboard-feature-card dashboard-feature-button"
+              type="button"
+              onClick={() => {
+                setActiveView("attachments");
+
+                document.getElementById("my-notes")?.scrollIntoView({
+                  behavior: "smooth",
+                });
+              }}
+            >
+              <div className="dashboard-feature-icon blue">⌁</div>
+              <h3>{t.attachments}</h3>
+              <p>{t.attachmentsDescription}</p>
+              <span>
+                {notes.reduce(
+                  (total, note) =>
+                    total +
+                    (note.isTrashed ? 0 : note.attachments?.length ?? 0),
+                  0
+                )}{" "}
+                {t.attachments} →
+              </span>
+            </button>
           </div>
         </section>
 
@@ -572,8 +734,11 @@ const filteredAttachments = allAttachments
           <div className="dashboard-notes-heading">
             <div>
               <h2>{t.recent}</h2>
-              <p>{notes.length} {t.noteCount}</p>
+              <p>
+                {notes.length} {t.noteCount}
+              </p>
             </div>
+
             <button
               className="dashboard-create-button"
               type="button"
@@ -597,133 +762,137 @@ const filteredAttachments = allAttachments
             </p>
           )}
 
+          {activeView === "attachments" ? (
+            <div className="dashboard-empty-state">
+              <div className="dashboard-empty-icon">📎</div>
+              <h2>
+                {filteredAttachments.length === 0
+                  ? t.noAttachments
+                  : `${filteredAttachments.length} ${t.attachments}`}
+              </h2>
+              <p>{t.noAttachmentsDescription}</p>
+            </div>
+          ) : filteredNotes.length === 0 ? (
+            <div className="dashboard-empty-state">
+              <div className="dashboard-empty-icon">✧</div>
 
-{filteredNotes.length === 0 ? (
-  <div className="dashboard-empty-state">
-    <div className="dashboard-empty-icon">✧</div>
+              <h2>
+                {activeView === "trash"
+                  ? t.emptyTrash
+                  : activeView === "favorites"
+                    ? t.emptyFavorites
+                    : search.trim()
+                      ? t.noResults
+                      : t.emptyTitle}
+              </h2>
 
-    <h2>
-      {activeView === "trash"
-        ? t.emptyTrash
-        : activeView === "favorites"
-          ? t.emptyFavorites
-          : search.trim()
-            ? t.noResults
-            : t.emptyTitle}
-    </h2>
+              <p>
+                {activeView === "trash"
+                  ? t.emptyTrash
+                  : activeView === "favorites"
+                    ? t.emptyFavorites
+                    : search.trim()
+                      ? t.noResults
+                      : t.emptyText}
+              </p>
 
-    <p>
-      {activeView === "trash"
-        ? t.emptyTrash
-        : activeView === "favorites"
-          ? t.emptyFavorites
-          : search.trim()
-            ? t.noResults
-            : t.emptyText}
-    </p>
-
-    {activeView === "all" && !search.trim() && (
-      <button
-        className="dashboard-create-button"
-        type="button"
-        onClick={openNewNote}
-      >
-        + {t.create}
-      </button>
-    )}
-  </div>
-) : (
-  <div className="dashboard-note-grid">
-    {filteredNotes.map((note) => (
-      <article className="dashboard-note-card" key={note.id}>
-        <h3>{note.title || t.untitled}</h3>
-        <p>{note.content || "—"}</p>
-
-           {note.attachments && note.attachments.length > 0 && (
-  <div className="note-card-attachments">
-    <span aria-hidden="true">📎</span>{" "}
-    {note.attachments.length}{" "}
-    {note.attachments.length === 1
-      ? t.attachment
-      : t.attachments}
-  </div>
-)}
-
-        <small>
-          {t.updated}:{" "}
-          {new Date(note.updatedAt).toLocaleDateString(
-            language === "am" ? "am-ET" : "en-US"
-          )}
-        </small>
-
-        <div className="dashboard-note-actions">
-          {activeView === "trash" ? (
-            <>
-              <button
-                type="button"
-                onClick={() => handleRestore(note.id)}
-              >
-                {t.restore}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDeletePermanently(note.id)}
-              >
-                {t.deletePermanently}
-              </button>
-            </>
+              {activeView === "all" && !search.trim() && (
+                <button
+                  className="dashboard-create-button"
+                  type="button"
+                  onClick={openNewNote}
+                >
+                  + {t.create}
+                </button>
+              )}
+            </div>
           ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => openEditNote(note)}
-              >
-                {t.edit}
-              </button>
+            <div className="dashboard-note-grid">
+              {filteredNotes.map((note) => (
+                <article className="dashboard-note-card" key={note.id}>
+                  <h3>{note.title || t.untitled}</h3>
 
-              <button
-                type="button"
-                onClick={() => handleToggleFavorite(note.id)}
-              >
-                {note.isFavorite ? t.unfavorite : t.favorite}
-              </button>
+                  <p>{note.content || "—"}</p>
 
-              
-<button
-  type="button"
-  onClick={() => handleTogglePinned(note.id)}
-  aria-label={note.isPinned ? "Unpin note" : "Pin note"}
->
-  {note.isPinned ? "📌 Unpin" : "📌 Pin"}
-</button>
+                  {note.attachments && note.attachments.length > 0 && (
+                    <div className="note-card-attachments">
+                      <span aria-hidden="true">📎</span>{" "}
+                      {note.attachments.length}{" "}
+                      {note.attachments.length === 1
+                        ? t.attachment
+                        : t.attachments}
+                    </div>
+                  )}
 
-<button
-  type="button"
-  onClick={() => handleArchive(note.id)}
-  aria-label="Archive note"
->
-  ▣ Archive
-</button>
+                  <small>
+                    {t.updated}:{" "}
+                    {new Date(note.updatedAt).toLocaleDateString(
+                      language === "am" ? "am-ET" : "en-US"
+                    )}
+                  </small>
 
+                  <div className="dashboard-note-actions">
+                    {activeView === "trash" ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleRestore(note.id)}
+                        >
+                          {t.restore}
+                        </button>
 
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePermanently(note.id)}
+                        >
+                          {t.deletePermanently}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openEditNote(note)}
+                        >
+                          {t.edit}
+                        </button>
 
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFavorite(note.id)}
+                        >
+                          {note.isFavorite ? t.unfavorite : t.favorite}
+                        </button>
 
-              <button
-                type="button"
-                onClick={() => handleDelete(note.id)}
-              >
-                {t.moveToTrash}
-              </button>
-            </>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePinned(note.id)}
+                          aria-label={note.isPinned ? "Unpin note" : "Pin note"}
+                        >
+                          {note.isPinned ? "📌 Unpin" : "📌 Pin"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleArchive(note.id)}
+                          aria-label="Archive note"
+                        >
+                          ▣ Archive
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(note.id)}
+                        >
+                          {t.moveToTrash}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
           )}
-        </div>
-      </article>
-    ))}
-  </div>
-)}
-
-        
         </section>
       </section>
 

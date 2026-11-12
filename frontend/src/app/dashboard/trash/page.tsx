@@ -3,7 +3,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../components/language/LanguageProvider";
+import { apiRequest } from "../../../lib/api";
 import "../../../styles/notes.css";
 
 type Note = {
@@ -11,75 +13,197 @@ type Note = {
   title: string;
   content: string;
   updatedAt: string;
+  status: "ACTIVE" | "ARCHIVED" | "TRASHED";
   isFavorite?: boolean;
   isPinned?: boolean;
-  isArchived?: boolean;
-  isTrashed?: boolean;
 };
 
 export default function TrashPage() {
   const { language, t } = useLanguage();
+  const router = useRouter();
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [ready, setReady] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const isAmharic = language === "am";
+
+  const labels = {
+    restore: isAmharic ? "መልስ" : "Restore",
+    delete: isAmharic ? "በቋሚነት ሰርዝ" : "Delete permanently",
+    empty: isAmharic ? "ቆሻሻውን ባዶ አድርግ" : "Empty Trash",
+    emptyTitle: isAmharic ? "ቆሻሻው ባዶ ነው" : "Your Trash is empty",
+    emptyDescription: isAmharic
+      ? "የሰረዝካቸው ማስታወሻዎች እዚህ ይታያሉ።"
+      : "Notes you move to Trash will appear here.",
+    count: isAmharic ? "ማስታወሻዎች" : "trashed notes",
+    restoreSuccess: isAmharic
+      ? "ማስታወሻው ተመልሷል።"
+      : "Note restored successfully.",
+    deleteSuccess: isAmharic
+      ? "ማስታወሻው በቋሚነት ተሰርዟል።"
+      : "Note permanently deleted.",
+    emptySuccess: isAmharic
+      ? "ቆሻሻው ባዶ ሆኗል።"
+      : "Trash emptied successfully.",
+    confirmEmpty: isAmharic
+      ? "በቆሻሻ ውስጥ ያሉትን ሁሉንም ማስታወሻዎች በቋሚነት መሰረዝ ይፈልጋሉ?"
+      : "Permanently delete all notes in Trash?",
+    untitled: isAmharic ? "ርዕስ የሌለው ማስታወሻ" : "Untitled note",
+    noContent: isAmharic ? "ይዘት የለም።" : "No additional content.",
+    updated: isAmharic ? "የተሻሻለበት:" : "Updated:",
+    recently: isAmharic ? "በቅርቡ" : "Recently",
+    back: isAmharic ? "ወደ ዳሽቦርድ ተመለስ" : "Back to Dashboard",
+    loading: isAmharic ? "ቆሻሻ እየተጫነ ነው..." : "Loading Trash...",
+  };
 
   useEffect(() => {
-    try {
-      const savedNotes = localStorage.getItem("mela-note-demo-notes");
+    async function loadTrashedNotes() {
+      const token = localStorage.getItem("mela-note-access-token");
 
-      if (savedNotes) {
-        const parsed: Note[] = JSON.parse(savedNotes);
-        setNotes(Array.isArray(parsed) ? parsed : []);
+      if (!token) {
+        router.replace("/login");
+        return;
       }
-    } catch (error) {
-      console.error("Could not load trashed notes:", error);
-    } finally {
-      setReady(true);
+
+      try {
+        const response = await apiRequest<Note[]>(
+          "/notes?status=TRASHED",
+          token,
+        );
+
+        setNotes(Array.isArray(response) ? response : []);
+      } catch (error) {
+        console.error("Could not load trashed notes:", error);
+        setFeedback(
+          error instanceof Error
+            ? error.message
+            : "Could not load Trash.",
+        );
+      } finally {
+        setReady(true);
+      }
     }
-  }, []);
 
-  const trashedNotes = notes.filter(
-    (note) => note.isTrashed === true
-  );
+    loadTrashedNotes();
+  }, [router]);
 
-  function handleRestore(noteId: string) {
-    const updatedNotes = notes.map((note) =>
-      note.id === noteId
-        ? {
-            ...note,
-            isTrashed: false,
-            updatedAt: new Date().toISOString(),
-          }
-        : note
-    );
+  async function handleRestore(noteId: string) {
+    const token = localStorage.getItem("mela-note-access-token");
 
-    setNotes(updatedNotes);
-    localStorage.setItem(
-      "mela-note-demo-notes",
-      JSON.stringify(updatedNotes)
-    );
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    try {
+      await apiRequest(`/notes/${noteId}/restore`, token, {
+        method: "PATCH",
+      });
+
+      setNotes((previous) =>
+        previous.filter((note) => note.id !== noteId),
+      );
+
+      setFeedback(labels.restoreSuccess);
+    } catch (error) {
+      console.error("Could not restore note:", error);
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Could not restore note.",
+      );
+    }
   }
 
-  function handleDeletePermanently(noteId: string) {
+  async function handleDeletePermanently(noteId: string) {
     const confirmed = window.confirm(t("confirmPermanentDelete"));
 
     if (!confirmed) return;
 
-    const updatedNotes = notes.filter(
-      (note) => note.id !== noteId
-    );
+    const token = localStorage.getItem("mela-note-access-token");
 
-    setNotes(updatedNotes);
-    localStorage.setItem(
-      "mela-note-demo-notes",
-      JSON.stringify(updatedNotes)
-    );
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    try {
+      await apiRequest(`/notes/${noteId}/permanent`, token, {
+        method: "DELETE",
+      });
+
+      setNotes((previous) =>
+        previous.filter((note) => note.id !== noteId),
+      );
+
+      setFeedback(labels.deleteSuccess);
+    } catch (error) {
+      console.error("Could not permanently delete note:", error);
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Could not delete note.",
+      );
+    }
+  }
+
+  async function handleEmptyTrash() {
+    if (notes.length === 0 || busy) return;
+
+    const confirmed = window.confirm(labels.confirmEmpty);
+
+    if (!confirmed) return;
+
+    const token = localStorage.getItem("mela-note-access-token");
+
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      await Promise.all(
+        notes.map((note) =>
+          apiRequest(`/notes/${note.id}/permanent`, token, {
+            method: "DELETE",
+          }),
+        ),
+      );
+
+      setNotes([]);
+      setFeedback(labels.emptySuccess);
+    } catch (error) {
+      console.error("Could not empty Trash:", error);
+
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Could not empty Trash.",
+      );
+
+      try {
+        const response = await apiRequest<Note[]>(
+          "/notes?status=TRASHED",
+          token,
+        );
+
+        setNotes(Array.isArray(response) ? response : []);
+      } catch (reloadError) {
+        console.error("Could not reload Trash:", reloadError);
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (!ready) {
     return (
       <section className="notes-page" lang={language}>
-        {t("loadingTrash")}
+        {labels.loading}
       </section>
     );
   }
@@ -98,60 +222,70 @@ export default function TrashPage() {
         </div>
 
         <Link href="/dashboard" className="notes-back-link">
-          ← {t("backToDashboard")}
+          {labels.back}
         </Link>
       </header>
 
-      {trashedNotes.length === 0 ? (
-        <div className="notes-empty-state">
-          <div className="notes-empty-icon">♲</div>
-          <h2>{t("emptyTrash")}</h2>
-          <p>{t("trashExplanation")}</p>
+      {feedback && (
+        <p role="status" className="notes-feedback">
+          {feedback}
+        </p>
+      )}
 
-          <Link href="/dashboard" className="notes-primary-link">
-            {t("goToDashboard")}
-          </Link>
+      <div className="notes-page-header">
+        <p>
+          {notes.length} {labels.count}
+        </p>
+
+        {notes.length > 0 && (
+          <button
+            type="button"
+            className="notes-delete-button"
+            onClick={handleEmptyTrash}
+            disabled={busy}
+          >
+            {busy ? labels.loading : labels.empty}
+          </button>
+        )}
+      </div>
+
+      {notes.length === 0 ? (
+        <div className="notes-empty-state">
+          <h2>{labels.emptyTitle}</h2>
+          <p>{labels.emptyDescription}</p>
         </div>
       ) : (
         <div className="notes-grid">
-          {trashedNotes.map((note) => (
-            <article className="note-card" key={note.id}>
-              <div className="note-card-header">
-                <h2>{note.title.trim() || t("untitledNote")}</h2>
-
-                <span className="note-badge">
-                  {t("inTrash")}
-                </span>
-              </div>
+          {notes.map((note) => (
+            <article key={note.id} className="note-card">
+              <h2>{note.title || labels.untitled}</h2>
 
               <p className="note-card-content">
-                {note.content || t("noTextContent")}
+                {note.content || labels.noContent}
               </p>
 
               <p className="note-card-date">
-                {t("lastUpdated")}{" "}
+                {labels.updated}{" "}
                 {note.updatedAt
-                  ? new Date(note.updatedAt).toLocaleDateString(
-                      language === "am" ? "am-ET" : "en-US"
-                    )
-                  : t("recently")}
+                  ? new Date(note.updatedAt).toLocaleDateString()
+                  : labels.recently}
               </p>
 
-              <div className="notes-trash-actions">
+              <div className="note-card-actions">
                 <button
                   type="button"
-                  className="notes-restore-button"
                   onClick={() => handleRestore(note.id)}
+                  disabled={busy}
                 >
-                  ↶ {t("restore")}
+                  {labels.restore}
                 </button>
 
                 <button
                   type="button"
-                  className="notes-danger-button"
                   onClick={() => handleDeletePermanently(note.id)}
+                  disabled={busy}
                 >
-                  {t("permanentlyDelete")}
+                  {labels.delete}
                 </button>
               </div>
             </article>

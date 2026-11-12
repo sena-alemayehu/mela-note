@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -26,7 +27,7 @@ const navigation = [
   { label: "Favorites", href: "/favorites", icon: Heart },
   { label: "Attachments", href: "/attachments", icon: Paperclip },
   { label: "Archive", href: "/archive", icon: Archive },
-  { label: "Trash", href: "/trash", icon: Trash2 },
+  { label: "Trash", href: "/dashboard/trash", icon: Trash2 },
 ];
 
 export default function Sidebar({

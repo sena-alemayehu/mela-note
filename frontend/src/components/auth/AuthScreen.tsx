@@ -7,11 +7,25 @@ import Link from "next/link";
 import LanguageSwitcher from "../language/LanguageSwitcher";
 import { useLanguage } from "../language/LanguageProvider";
 import "../../styles/auth.css";
-import router from "next/dist/shared/lib/router/router";
 
 type AuthScreenProps = {
   mode: "signup" | "login";
 };
+
+type Language = "en" | "am";
+
+type AuthResponse = {
+  accessToken?: string;
+  user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+  };
+  message?: string | string[];
+};
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const copy = {
   en: {
@@ -20,7 +34,6 @@ const copy = {
     loginHeading: "Sign in to continue",
     signupHeading: "Create your account",
     signup: "Sign up",
-    login: "Login",
     name: "Full name",
     email: "Email",
     password: "Password",
@@ -36,15 +49,17 @@ const copy = {
     required: "Please complete all required fields.",
     invalidEmail: "Please enter a valid email address.",
     shortPassword: "Password must contain at least 8 characters.",
-    demo: "The form is ready. Authentication still needs to be connected to the backend.",
+    submitting: "Please wait...",
+    signupSuccess: "Account created successfully. Please log in.",
+    genericError: "Something went wrong. Please try again.",
   },
+
   am: {
     welcome: "እንኳን ወደ",
     tagline: "ማስታወሻዎ፣ የእርስዎ ቦታ።",
     loginHeading: "ለመቀጠል ይግቡ",
     signupHeading: "መለያ ይፍጠሩ",
     signup: "መለያ ይፍጠሩ",
-    login: "ግባ",
     name: "ሙሉ ስም",
     email: "ኢሜይል",
     password: "የይለፍ ቃል",
@@ -60,81 +75,129 @@ const copy = {
     required: "እባክዎ አስፈላጊ መረጃዎችን ያስገቡ።",
     invalidEmail: "ትክክለኛ ኢሜይል ያስገቡ።",
     shortPassword: "የይለፍ ቃሉ ቢያንስ 8 ቁምፊዎች ሊኖሩት ይገባል።",
-    demo: "ቅጹ ዝግጁ ነው። ከጀርባ አገልጋዩ ጋር በሚቀጥለው ደረጃ እናገናኘዋለን።",
+    submitting: "እባክዎ ይጠብቁ...",
+    signupSuccess: "መለያዎ ተፈጥሯል። እባክዎ ይግቡ።",
+    genericError: "ችግር ተፈጥሯል። እባክዎ እንደገና ይሞክሩ።",
   },
 };
 
 export default function AuthScreen({ mode }: AuthScreenProps) {
   const { language } = useLanguage();
-  const t = copy[language];
-  const isSignup = mode === "signup";
+  const t = copy[language as Language];
 
+  const isSignup = mode === "signup";
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-  event.preventDefault();
-  setMessage("");
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
 
-  if ((isSignup && !name.trim()) || !email.trim() || !password) {
-    setMessage(t.required);
-    return;
+    if (isSubmitting) return;
+
+    // Required fields validation
+    if ((isSignup && !name.trim()) || !email.trim() || !password) {
+      setMessage(t.required);
+      return;
+    }
+
+    // Email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setMessage(t.invalidEmail);
+      return;
+    }
+
+    // Password validation
+    if (password.length < 8) {
+      setMessage(t.shortPassword);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const endpoint = isSignup
+        ? `${API_BASE_URL}/api/auth/register`
+        : `${API_BASE_URL}/api/auth/login`;
+
+      const requestBody = isSignup
+        ? {
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            password,
+          }
+        : {
+            email: email.trim().toLowerCase(),
+            password,
+          };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const result: AuthResponse = await response
+        .json()
+        .catch(() => ({}));
+
+      if (!response.ok) {
+        const backendMessage = Array.isArray(result.message)
+          ? result.message.join(", ")
+          : result.message;
+
+        throw new Error(backendMessage || t.genericError);
+      }
+
+      // Signup successful
+      if (isSignup) {
+        setMessage(t.signupSuccess);
+        router.push("/login");
+        return;
+      }
+
+      // Check that login returned an access token
+      if (!result.accessToken) {
+        throw new Error(
+          "The backend did not return an access token."
+        );
+      }
+
+      // Save authentication token
+      localStorage.setItem(
+        "mela-note-access-token",
+        result.accessToken
+      );
+
+      // Save user information if returned by the backend
+      if (result.user) {
+        localStorage.setItem(
+          "mela-note-user",
+          JSON.stringify(result.user)
+        );
+      }
+
+      // Go to dashboard
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Authentication error:", error);
+
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : t.genericError
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    setMessage(t.invalidEmail);
-    return;
-  }
-
-  if (password.length < 8) {
-    setMessage(t.shortPassword);
-    return;
-  }
-
-  if (isSignup) {
-    sessionStorage.setItem(
-      "mela-note-demo-account",
-      JSON.stringify({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-      })
-    );
-
-    router.push("/login");
-    return;
-  }
-
-  const savedAccount = sessionStorage.getItem("mela-note-demo-account");
-
-  if (!savedAccount) {
-    setMessage(
-      language === "am"
-        ? "እባክዎ መጀመሪያ መለያ ይፍጠሩ።"
-        : "Please create an account first."
-    );
-    return;
-  }
-
-  const account = JSON.parse(savedAccount);
-
-  if (email.trim().toLowerCase() !== account.email) {
-    setMessage(
-      language === "am"
-        ? "ያስገቡት ኢሜይል አይዛመድም።"
-        : "The email does not match the demo account."
-    );
-    return;
-  }
-
-  
-  sessionStorage.setItem("mela-note-demo-authenticated", "true");
-
-  router.push("/dashboard");
-}
 
   return (
     <main className="auth-scene" lang={language}>
@@ -150,26 +213,39 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         </svg>
       </div>
 
-      <section className={`auth-card ${isSignup ? "signup-card" : "login-card"}`}>
+      <section
+        className={`auth-card ${isSignup ? "signup-card" : "login-card"}`}
+      >
         <aside className="auth-welcome">
           <div className="welcome-content">
             <p className="welcome-eyebrow">{t.welcome}</p>
-            <Link href="/" className="welcome-logo" aria-label="Mela Note home">
+
+            <Link
+              href="/"
+              className="welcome-logo"
+              aria-label="Mela Note home"
+            >
               <span>Mela</span> <strong>Note</strong>
             </Link>
+
             <p className="welcome-tagline">{t.tagline}</p>
 
-            <div className="welcome-app-icon" aria-label="Mela Note notebook icon">
+            <div
+              className="welcome-app-icon"
+              aria-label="Mela Note notebook icon"
+            >
               <div className="icon-tabs">
                 <i />
                 <i />
                 <i />
               </div>
+
               <div className="icon-paper">
                 <div />
                 <div />
                 <div />
               </div>
+
               <span className="icon-pencil">✎</span>
             </div>
           </div>
@@ -190,6 +266,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
               {isSignup && (
                 <label className="auth-input-group">
                   <span>{t.name}</span>
+
                   <input
                     type="text"
                     autoComplete="name"
@@ -203,8 +280,12 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
               <label className="auth-input-group">
                 <span>{t.email}</span>
+
                 <div className="auth-input-shell">
-                  <span className="input-symbol" aria-hidden="true">✉</span>
+                  <span className="input-symbol" aria-hidden="true">
+                    ✉
+                  </span>
+
                   <input
                     type="email"
                     autoComplete="email"
@@ -218,11 +299,17 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
               <label className="auth-input-group">
                 <span>{t.password}</span>
+
                 <div className="auth-input-shell">
-                  <span className="input-symbol" aria-hidden="true">♙</span>
+                  <span className="input-symbol" aria-hidden="true">
+                    ♙
+                  </span>
+
                   <input
                     type="password"
-                    autoComplete={isSignup ? "new-password" : "current-password"}
+                    autoComplete={
+                      isSignup ? "new-password" : "current-password"
+                    }
                     placeholder={t.passwordPlaceholder}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
@@ -233,13 +320,22 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
               </label>
 
               {message && (
-                <p className="auth-feedback" role="status">
+                <p className="auth-feedback" role="alert">
                   {message}
                 </p>
               )}
 
-              <button type="submit" className="auth-primary-button">
-                {isSignup ? t.next : t.submitLogin}
+              <button
+                type="submit"
+                className="auth-primary-button"
+                disabled={isSubmitting}
+              >
+                {isSubmitting
+                  ? t.submitting
+                  : isSignup
+                    ? t.next
+                    : t.submitLogin}
+
                 <span aria-hidden="true">→</span>
               </button>
             </form>
@@ -252,6 +348,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
             <p className="auth-account-switch">
               {isSignup ? t.already : t.noAccount}
+
               <Link href={isSignup ? "/login" : "/signup"}>
                 {isSignup ? t.signIn : t.signup}
               </Link>
@@ -260,7 +357,9 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         </div>
       </section>
 
-      <p className="sky-footer">A little space for every thought ✦</p>
+      <p className="sky-footer">
+        A little space for every thought ✦
+      </p>
     </main>
   );
 }

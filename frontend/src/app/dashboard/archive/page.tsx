@@ -1,8 +1,10 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { apiRequest } from "../../../lib/api";
 import { useLanguage } from "../../../components/language/LanguageProvider";
 import "../../../styles/notes.css";
 
@@ -11,54 +13,93 @@ type Note = {
   title: string;
   content: string;
   updatedAt: string;
+  status: string;
   isFavorite?: boolean;
   isPinned?: boolean;
-  isArchived?: boolean;
-  isTrashed?: boolean;
 };
 
 export default function ArchivePage() {
   const { language, t } = useLanguage();
+  const router = useRouter();
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState("");
 
-  useEffect(() => {
+  const loadArchivedNotes = useCallback(async () => {
+    const token = localStorage.getItem("mela-note-access-token");
+
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
     try {
-      const savedNotes = localStorage.getItem("mela-note-demo-notes");
+      setError("");
 
-      if (savedNotes) {
-        const parsed: Note[] = JSON.parse(savedNotes);
-        setNotes(Array.isArray(parsed) ? parsed : []);
-      }
-    } catch (error) {
-      console.error("Could not load archived notes:", error);
+      const data = await apiRequest<Note[]>(
+        "/notes?status=ARCHIVED",
+        token
+      );
+
+      setNotes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Could not load archived notes:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load archived notes."
+      );
     } finally {
       setReady(true);
     }
-  }, []);
+  }, [router]);
 
-  function handleRestore(noteId: string) {
-    const updatedNotes = notes.map((note) =>
-      note.id === noteId
-        ? {
-            ...note,
-            isArchived: false,
-            updatedAt: new Date().toISOString(),
-          }
-        : note
-    );
+  useEffect(() => {
+    loadArchivedNotes();
+  }, [loadArchivedNotes]);
 
-    setNotes(updatedNotes);
-    localStorage.setItem(
-      "mela-note-demo-notes",
-      JSON.stringify(updatedNotes)
-    );
+  async function handleRestore(noteId: string) {
+    const token = localStorage.getItem("mela-note-access-token");
+
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setRestoringId(noteId);
+      setError("");
+      setFeedback("");
+
+      await apiRequest(
+        `/notes/${noteId}/restore`,
+        token,
+        {
+          method: "PATCH",
+        }
+      );
+
+      setNotes((previous) =>
+        previous.filter((note) => note.id !== noteId)
+      );
+
+      setFeedback("Note restored successfully.");
+    } catch (err) {
+      console.error("Could not restore note:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to restore note."
+      );
+    } finally {
+      setRestoringId(null);
+    }
   }
-
-  const archivedNotes = notes.filter(
-    (note) => note.isArchived === true && !note.isTrashed
-  );
 
   if (!ready) {
     return (
@@ -72,8 +113,12 @@ export default function ArchivePage() {
     <section className="notes-page" lang={language}>
       <div className="notes-page-header">
         <div>
-          <p className="notes-page-eyebrow">{t("yourCollection")}</p>
+          <p className="notes-page-eyebrow">
+            {t("yourCollection")}
+          </p>
+
           <h1>▣ {t("archive")}</h1>
+
           <p>{t("archiveDescription")}</p>
         </div>
 
@@ -82,29 +127,52 @@ export default function ArchivePage() {
         </Link>
       </div>
 
+      {error && (
+        <p role="alert" className="notes-error-message">
+          {error}
+        </p>
+      )}
+
+      {feedback && (
+        <p role="status" className="notes-success-message">
+          {feedback}
+        </p>
+      )}
+
       <p className="notes-results-count">
-        {archivedNotes.length}{" "}
-        {archivedNotes.length === 1
+        {notes.length}{" "}
+        {notes.length === 1
           ? t("archivedNote")
           : t("archivedNotes")}
       </p>
 
-      {archivedNotes.length === 0 ? (
+      {notes.length === 0 ? (
         <div className="notes-empty-state">
           <div className="notes-empty-icon">▣</div>
+
           <h2>{t("emptyArchive")}</h2>
+
           <p>{t("archiveExplanation")}</p>
 
-          <Link href="/dashboard" className="notes-primary-link">
+          <Link
+            href="/dashboard"
+            className="notes-primary-link"
+          >
             {t("goToDashboard")}
           </Link>
         </div>
       ) : (
         <div className="notes-list-grid">
-          {archivedNotes.map((note) => (
-            <article className="notes-list-card" key={note.id}>
+          {notes.map((note) => (
+            <article
+              className="notes-list-card"
+              key={note.id}
+            >
               <div className="notes-list-card-top">
-                <h2>{note.title.trim() || t("untitledNote")}</h2>
+                <h2>
+                  {note.title.trim() || t("untitledNote")}
+                </h2>
+
                 <span className="notes-status-badge">
                   {t("archived")}
                 </span>
@@ -127,8 +195,11 @@ export default function ArchivePage() {
                 type="button"
                 className="notes-restore-button"
                 onClick={() => handleRestore(note.id)}
+                disabled={restoringId === note.id}
               >
-                {t("restoreActive")}
+                {restoringId === note.id
+                  ? "Restoring..."
+                  : t("restoreActive")}
               </button>
             </article>
           ))}
