@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Pin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../components/language/LanguageProvider";
 import { apiRequest } from "../../../lib/api";
@@ -84,7 +84,10 @@ export default function PinnedNotesPage() {
       <div className="notes-page-header">
         <div>
           <p className="notes-page-eyebrow">{t("quickAccess")}</p>
-          <h1>📌 {t("pinnedNotes")}</h1>
+          <h1>
+            <Pin className="page-title-icon" size={28} strokeWidth={1.8} aria-hidden="true" />
+            {t("pinnedNotes")}
+          </h1>
           <p>{t("pinnedDescription")}</p>
         </div>
 

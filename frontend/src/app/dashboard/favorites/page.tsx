@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../components/language/LanguageProvider";
 import { apiRequest } from "../../../lib/api";
@@ -78,7 +78,10 @@ export default function FavoritesPage() {
       <div className="notes-page-header">
         <div>
           <p className="notes-page-eyebrow">{t("yourCollection")}</p>
-          <h1>♥ {t("favorites")}</h1>
+          <h1>
+            <Heart className="page-title-icon" size={28} strokeWidth={1.8} aria-hidden="true" />
+            {t("favorites")}
+          </h1>
           <p>{t("favoritesDescription")}</p>
         </div>
 

@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../components/language/LanguageProvider";
 import { apiRequest } from "../../../lib/api";
@@ -31,7 +31,7 @@ export default function TrashPage() {
 
   const labels = {
     restore: isAmharic ? "መልስ" : "Restore",
-    delete: isAmharic ? "በቋሚነት ሰርዝ" : "Delete permanently",
+    delete: isAmharic ? "በቋሚነት ሰርዝ" : "Delete Permanently",
     empty: isAmharic ? "ቆሻሻውን ባዶ አድርግ" : "Empty Trash",
     emptyTitle: isAmharic ? "ቆሻሻው ባዶ ነው" : "Your Trash is empty",
     emptyDescription: isAmharic
@@ -216,7 +216,10 @@ export default function TrashPage() {
             {t("recoverOrDelete")}
           </p>
 
-          <h1>{t("trash")}</h1>
+          <h1>
+            <Trash2 className="page-title-icon" size={28} strokeWidth={1.8} aria-hidden="true" />
+            {t("trash")}
+          </h1>
 
           <p>{t("trashDescription")}</p>
         </div>
@@ -240,7 +243,7 @@ export default function TrashPage() {
         {notes.length > 0 && (
           <button
             type="button"
-            className="notes-delete-button"
+            className="trash-empty-button"
             onClick={handleEmptyTrash}
             disabled={busy}
           >
@@ -274,6 +277,7 @@ export default function TrashPage() {
               <div className="note-card-actions">
                 <button
                   type="button"
+                  className="trash-restore-button"
                   onClick={() => handleRestore(note.id)}
                   disabled={busy}
                 >
@@ -282,6 +286,7 @@ export default function TrashPage() {
 
                 <button
                   type="button"
+                  className="trash-delete-button"
                   onClick={() => handleDeletePermanently(note.id)}
                   disabled={busy}
                 >

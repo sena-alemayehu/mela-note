@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Paperclip } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "../../../components/language/LanguageProvider";
 import { apiRequest } from "../../../lib/api";
@@ -372,7 +372,10 @@ export default function AttachmentsPage() {
             {t("fileLibrary")}
           </p>
 
-          <h1>{t("attachments")}</h1>
+          <h1>
+            <Paperclip className="page-title-icon" size={28} strokeWidth={1.8} aria-hidden="true" />
+            {t("attachments")}
+          </h1>
 
           <p>{t("attachmentsDescription")}</p>
         </div>

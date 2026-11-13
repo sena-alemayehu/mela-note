@@ -1362,3 +1362,175 @@
   font-size: 12px;
   line-height: 1.2;
 }
+
+/* Append to the bottom of src/styles/dashboard.css */
+.dashboard-attachment-list { display: grid; gap: 12px; }
+.dashboard-attachment-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 14px;
+  background: #fff; border: 1px solid #e5e7f5;
+}
+.dashboard-attachment-icon { font-size: 22px; }
+.dashboard-attachment-info { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.dashboard-attachment-info strong {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2430;
+}
+.dashboard-attachment-info small { color: #6b7280; }
+.dashboard-attachment-download {
+  padding: 8px 14px; border: 0; border-radius: 10px;
+  background: #4559ea; color: #fff; font-weight: 600; cursor: pointer;
+}
+.dashboard-attachment-download:hover { background: #3647c9; }
+
+[data-theme="dark"] .dashboard-attachment-item {
+  background: var(--dk-card, #1b2033); border-color: var(--dk-border, #2a3150);
+}
+[data-theme="dark"] .dashboard-attachment-info strong { color: #fff; }
+[data-theme="dark"] .dashboard-attachment-info small { color: #a3acc7; }
+
+/* Append to the bottom of src/styles/dashboard.css */
+button.note-card-attachments { cursor: pointer; font: inherit; }
+button.note-card-attachments:hover { filter: brightness(1.2); }
+
+.dashboard-attachment-item .dashboard-attachment-download + .dashboard-attachment-download {
+  background: transparent; color: #4559ea; border: 1px solid #4559ea;
+}
+
+.attachment-viewer-backdrop {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center;
+  padding: 16px; background: rgb(5 8 20 / 72%); backdrop-filter: blur(4px);
+}
+.attachment-viewer {
+  width: min(860px, 100%); max-height: 90vh; display: flex; flex-direction: column;
+  border-radius: 18px; background: #fff; color: #1f2430; overflow: hidden;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 40%);
+}
+.attachment-viewer-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid #e5e7f5;
+}
+.attachment-viewer-header h3 { margin: 0; font-size: 18px; }
+.attachment-viewer-header button {
+  border: 0; background: transparent; color: inherit; font-size: 20px; cursor: pointer;
+}
+.attachment-viewer-body { overflow: auto; padding: 18px; display: grid; gap: 22px; }
+.attachment-viewer-item { margin: 0; display: grid; gap: 10px; }
+.attachment-viewer-item figcaption { display: grid; gap: 2px; }
+.attachment-viewer-item figcaption small { color: #6b7280; }
+.attachment-viewer-item img,
+.attachment-viewer-item video { max-width: 100%; max-height: 65vh; object-fit: contain; border-radius: 12px; justify-self: center; }
+.attachment-viewer-item iframe { width: 100%; height: 65vh; border: 0; border-radius: 12px; background: #f3f4fa; }
+.attachment-viewer-item audio { width: 100%; }
+.attachment-viewer-note { margin: 0; color: #6b7280; }
+.attachment-viewer-download {
+  justify-self: start; padding: 8px 14px; border-radius: 10px;
+  background: #4559ea; color: #fff; font-weight: 600; text-decoration: none;
+}
+
+[data-theme="dark"] .attachment-viewer { background: #151a2e; color: #fff; }
+[data-theme="dark"] .attachment-viewer-header { border-color: #2a3150; }
+[data-theme="dark"] .attachment-viewer-item figcaption small,
+[data-theme="dark"] .attachment-viewer-note { color: #a3acc7; }
+[data-theme="dark"] .attachment-viewer-item iframe { background: #1b2033; }
+
+/* Append to the bottom of src/styles/dashboard.css */
+.attachment-viewer-actions { display: flex; align-items: center; gap: 10px; }
+
+.attachment-viewer-delete {
+  padding: 8px 14px; border-radius: 10px; cursor: pointer; font-weight: 600;
+  background: transparent; color: #ef4444; border: 1px solid #ef4444;
+}
+.attachment-viewer-delete:hover { background: rgb(239 68 68 / 12%); }
+.attachment-viewer-delete:disabled { opacity: 0.6; cursor: wait; }
+
+[data-theme="dark"] .attachment-viewer-delete { color: #ff6b6b; border-color: #ff6b6b; }
+
+/* 
+   Label Filter Chips, Checklist Preview, & Card Enhancements (Tasks 12, 13, 14, 18)
+   */
+
+.dashboard-label-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0 22px;
+}
+
+.dashboard-label-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--mn-border);
+  background: var(--mn-surface);
+  color: var(--mn-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard-label-chip:hover {
+  border-color: var(--mn-primary);
+  color: var(--mn-primary);
+}
+
+.dashboard-label-chip.active {
+  background: var(--mn-primary);
+  color: #ffffff;
+  border-color: var(--mn-primary);
+}
+
+.dashboard-note-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dashboard-card-pin-badge {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.dashboard-note-checklist-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.checklist-preview-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mn-text);
+}
+
+.checklist-preview-line.done {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.checklist-preview-more {
+  color: var(--mn-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.dashboard-note-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.dashboard-note-card-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--mn-primary-soft);
+  color: var(--mn-primary-dark);
+  font-size: 11px;
+  font-weight: 600;
+}

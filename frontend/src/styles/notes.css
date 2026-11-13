@@ -1237,3 +1237,375 @@
   border: 0;
   color: var(--dk-accent-soft);
 }
+
+/* ==============================================================================
+   Checklist, Tags, Color Palette, and Autosave Styles (Tasks 12, 13, 15, 18)
+   ============================================================================== */
+
+.note-editor-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.note-autosave-status {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+.note-autosave-status.saving {
+  color: #d97706;
+  background: #fef3c7;
+}
+
+.note-autosave-status.saved {
+  color: #059669;
+  background: #d1fae5;
+}
+
+.note-autosave-status.unsaved {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.note-pin-button {
+  background: #f4f2fb;
+  border: 1px solid #e8e6f0;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
+}
+
+.note-pin-button.is-pinned {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.note-type-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.note-type-tab {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid #e8e6f0;
+  background: #fcfbff;
+  color: var(--notes-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.note-type-tab.active {
+  background: var(--notes-primary-soft);
+  color: var(--notes-primary-dark);
+  border-color: var(--notes-primary);
+}
+
+/* Checklist section */
+.checklist-container {
+  margin: 12px 0 20px;
+}
+
+.checklist-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.checklist-progress small {
+  color: var(--notes-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.checklist-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.checklist-progress-fill {
+  height: 100%;
+  background: var(--notes-primary);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.checklist-items {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  transition: background 0.15s ease;
+}
+
+.checklist-item.is-completed {
+  opacity: 0.65;
+}
+
+.checklist-item.is-completed .checklist-text,
+.checklist-item.is-completed .checklist-item-input {
+  text-decoration: line-through;
+  color: var(--notes-muted);
+}
+
+.checklist-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--notes-primary);
+  cursor: pointer;
+}
+
+.checklist-item-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: var(--notes-text);
+}
+
+.checklist-remove-button {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.checklist-remove-button:hover {
+  color: var(--notes-danger);
+  background: var(--notes-danger-soft);
+}
+
+.checklist-new-item {
+  display: flex;
+  gap: 8px;
+}
+
+.checklist-new-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.checklist-new-input:focus {
+  border-color: var(--notes-primary);
+}
+
+.checklist-add-button {
+  padding: 8px 14px;
+  background: var(--notes-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Color picker */
+.note-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.note-picker-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #454458;
+}
+
+.note-color-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.note-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #d1d5db;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.note-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.note-color-swatch.is-selected {
+  border-color: var(--notes-primary);
+  box-shadow: 0 0 0 2px var(--notes-primary-soft);
+  transform: scale(1.15);
+}
+
+/* Labels / Tags */
+.note-labels-section {
+  margin: 16px 0;
+}
+
+.note-labels-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.note-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--notes-primary-soft);
+  color: var(--notes-primary-dark);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.note-tag-chip button {
+  background: none;
+  border: none;
+  color: var(--notes-primary-dark);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.note-tag-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.note-tag-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.note-tag-add-btn {
+  padding: 8px 14px;
+  background: #f4f2fb;
+  border: 1px solid #e8e6f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--notes-primary-dark);
+  cursor: pointer;
+}
+
+/* Append to the bottom of src/styles/notes.css */
+
+/* Page title icons */
+.notes-page-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.page-title-icon {
+  flex-shrink: 0;
+  color: #4559ea;
+}
+[data-theme="dark"] .page-title-icon {
+  color: #7b76c1;
+}
+
+/* Trash buttons */
+.note-card-actions .trash-restore-button,
+.note-card-actions .trash-delete-button,
+.trash-empty-button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: transparent;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.note-card-actions .trash-restore-button {
+  color: #16a34a;
+  border: 1px solid #16a34a;
+}
+.note-card-actions .trash-restore-button:hover {
+  background: rgb(22 163 74 / 14%);
+}
+
+.note-card-actions .trash-delete-button {
+  color: #ef4444;
+  border: 1px solid #ef4444;
+}
+.note-card-actions .trash-delete-button:hover {
+  background: rgb(239 68 68 / 14%);
+}
+
+.trash-empty-button {
+  color: #1f2430;
+  border: 1px solid #cfd4ea;
+}
+[data-theme="dark"] .note-card-actions .trash-restore-button {
+  color: #4ade80;
+  border-color: #4ade80;
+}
+[data-theme="dark"] .note-card-actions .trash-delete-button {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+[data-theme="dark"] .trash-empty-button {
+  color: #fff;
+  border-color: rgb(255 255 255 / 30%);
+}
+.trash-empty-button:hover {
+  background: rgb(120 130 200 / 16%);
+}
+.note-card-actions:has(.trash-restore-button) {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.trash-empty-button:disabled,
+.trash-restore-button:disabled,
+.trash-delete-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
