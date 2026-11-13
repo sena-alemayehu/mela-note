@@ -1,0 +1,24 @@
+# ==============================================================================
+# Mela Note - Caddy Reverse Proxy & Automated HTTPS
+# ==============================================================================
+
+{$DOMAIN:localhost} {
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # API and attachments requests proxy to backend
+    handle /api/* {
+        reverse_proxy backend:3001
+    }
+
+    # Static assets and frontend pages proxy to Next.js
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
