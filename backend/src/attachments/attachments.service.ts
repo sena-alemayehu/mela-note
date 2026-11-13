@@ -1,4 +1,3 @@
-
 import {
   Injectable,
   NotFoundException,
@@ -8,12 +7,14 @@ import {
 import { NoteStatus } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AttachmentStorageService } from './attachment-storage.service';
+import { AuditLogService } from '../audit/audit-log.service';
 
 @Injectable()
 export class AttachmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: AttachmentStorageService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   // Upload an attachment to a user's active note
@@ -21,6 +22,7 @@ export class AttachmentsService {
     userId: string,
     noteId: string,
     file: Express.Multer.File,
+    meta?: { ipAddress?: string; userAgent?: string },
   ) {
     if (!file) {
       throw new BadRequestException(
@@ -32,7 +34,7 @@ export class AttachmentsService {
     const storageKey = file.filename;
 
     try {
-      // Verify that the note belongs to this user
+      // Verify that the note belongs to this user (ownership check)
       const note = await this.prisma.note.findFirst({
         where: {
           id: noteId,
@@ -58,6 +60,20 @@ export class AttachmentsService {
         },
       });
 
+      await this.auditLog.logAction({
+        userId,
+        action: 'ATTACHMENT_UPLOAD',
+        details: {
+          attachmentId: attachment.id,
+          noteId,
+          fileName: file.originalname,
+          sizeBytes: file.size,
+          mimeType: file.mimetype,
+        },
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent,
+      });
+
       return {
         id: attachment.id,
         fileName: attachment.fileName,
@@ -68,7 +84,7 @@ export class AttachmentsService {
         downloadUrl: `/api/attachments/${attachment.id}/download`,
       };
     } catch (error) {
-      // Clean up the uploaded file without hiding the original error
+      // Clean up the uploaded file if database insert fails
       try {
         await this.storage.deleteFile(storageKey);
       } catch {
@@ -151,7 +167,11 @@ export class AttachmentsService {
   }
 
   // Delete an attachment and its stored file
-  async remove(userId: string, attachmentId: string) {
+  async remove(
+    userId: string,
+    attachmentId: string,
+    meta?: { ipAddress?: string; userAgent?: string },
+  ) {
     const attachment = await this.prisma.attachment.findFirst({
       where: {
         id: attachmentId,
@@ -174,6 +194,14 @@ export class AttachmentsService {
       where: {
         id: attachmentId,
       },
+    });
+
+    await this.auditLog.logAction({
+      userId,
+      action: 'ATTACHMENT_DELETE',
+      details: { attachmentId, fileName: attachment.fileName },
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
     });
 
     return {

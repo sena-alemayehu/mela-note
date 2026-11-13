@@ -1,4 +1,3 @@
-
 import {
   BadRequestException,
   Body,
@@ -14,15 +13,8 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { NoteStatus, NoteType } from '../generated/prisma/client';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard, AuthenticatedRequest } from '../auth/jwt-auth.guard';
 import { NotesService } from './notes.service';
-
-interface AuthenticatedRequest extends Request {
-  user: {
-    sub: string;
-    email?: string;
-  };
-}
 
 @Controller('notes')
 @UseGuards(JwtAuthGuard)
@@ -36,22 +28,32 @@ export class NotesController {
   ) {
     this.validateOptionalFields(body, true);
 
-    return this.notesService.create(req.user.sub, {
-      title: body.title as string | undefined,
-      content: body.content as string,
-      type: body.type as NoteType | undefined,
-      color: body.color as string | undefined,
-      isPinned: body.isPinned as boolean | undefined,
-      isFavorite: body.isFavorite as boolean | undefined,
-      labels: body.labels as string[] | undefined,
-      checklist: body.checklist,
-    });
+    return this.notesService.create(
+      req.user.sub,
+      {
+        title: body.title as string | undefined,
+        content: body.content as string,
+        type: body.type as NoteType | undefined,
+        color: body.color as string | undefined,
+        isPinned: body.isPinned as boolean | undefined,
+        isFavorite: body.isFavorite as boolean | undefined,
+        labels: body.labels as string[] | undefined,
+        checklist: body.checklist,
+      },
+      {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    );
   }
 
   @Get()
   findAll(
     @Req() req: AuthenticatedRequest,
     @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('label') label?: string,
+    @Query('type') type?: string,
   ) {
     const allowedStatuses = ['ACTIVE', 'ARCHIVED', 'TRASHED'];
 
@@ -59,10 +61,16 @@ export class NotesController {
       throw new BadRequestException('Invalid note status');
     }
 
-    return this.notesService.findAll(
-      req.user.sub,
-      (status as NoteStatus) || NoteStatus.ACTIVE,
-    );
+    if (type && !Object.values(NoteType).includes(type as NoteType)) {
+      throw new BadRequestException('Invalid note type');
+    }
+
+    return this.notesService.findAll(req.user.sub, {
+      status: (status as NoteStatus) || NoteStatus.ACTIVE,
+      search,
+      label,
+      type: type as NoteType | undefined,
+    });
   }
 
   @Get('favorites')
@@ -86,15 +94,24 @@ export class NotesController {
   ) {
     this.validateOptionalFields(body, false);
 
-    return this.notesService.update(req.user.sub, id, {
-      title: body.title as string | undefined,
-      content: body.content as string | undefined,
-      color: body.color as string | undefined,
-      isPinned: body.isPinned as boolean | undefined,
-      isFavorite: body.isFavorite as boolean | undefined,
-      labels: body.labels as string[] | undefined,
-      checklist: body.checklist,
-    });
+    return this.notesService.update(
+      req.user.sub,
+      id,
+      {
+        title: body.title as string | undefined,
+        content: body.content as string | undefined,
+        type: body.type as NoteType | undefined,
+        color: body.color as string | undefined,
+        isPinned: body.isPinned as boolean | undefined,
+        isFavorite: body.isFavorite as boolean | undefined,
+        labels: body.labels as string[] | undefined,
+        checklist: body.checklist,
+      },
+      {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    );
   }
 
   @Patch(':id/trash')
@@ -102,7 +119,10 @@ export class NotesController {
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.notesService.trash(req.user.sub, id);
+    return this.notesService.trash(req.user.sub, id, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   @Patch(':id/archive')
@@ -110,7 +130,10 @@ export class NotesController {
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.notesService.archive(req.user.sub, id);
+    return this.notesService.archive(req.user.sub, id, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   @Patch(':id/restore')
@@ -118,7 +141,10 @@ export class NotesController {
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.notesService.restore(req.user.sub, id);
+    return this.notesService.restore(req.user.sub, id, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   @Delete(':id/permanent')
@@ -126,7 +152,10 @@ export class NotesController {
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.notesService.permanentlyDelete(req.user.sub, id);
+    return this.notesService.permanentlyDelete(req.user.sub, id, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   private validateOptionalFields(

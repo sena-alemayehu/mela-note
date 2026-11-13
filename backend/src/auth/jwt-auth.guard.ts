@@ -1,4 +1,3 @@
-
 import {
   CanActivate,
   ExecutionContext,
@@ -7,12 +6,16 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
+import { Role } from '../generated/prisma/client';
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    sub: string;
-    email?: string;
-  };
+export interface AuthenticatedUser {
+  sub: string;
+  email?: string;
+  role: Role;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user: AuthenticatedUser;
 }
 
 @Injectable()
@@ -22,22 +25,34 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
       .switchToHttp()
-      .getRequest<AuthenticatedRequest>();
+      .getRequest<Request & { user?: AuthenticatedUser }>();
 
-    const authorization = request.headers.authorization;
+    let token: string | undefined;
 
-    if (!authorization?.startsWith('Bearer ')) {
-      throw new UnauthorizedException(
-        'Please provide a valid access token.',
-      );
+    // 1. Check HttpOnly cookie first
+    if (request.cookies?.token) {
+      token = request.cookies.token;
     }
 
-    const token = authorization.slice(7);
+    // 2. Fall back to Authorization: Bearer header
+    if (!token) {
+      const authorization = request.headers.authorization;
+      if (authorization?.startsWith('Bearer ')) {
+        token = authorization.slice(7);
+      }
+    }
+
+    if (!token) {
+      throw new UnauthorizedException(
+        'Please provide a valid access token or sign in.',
+      );
+    }
 
     try {
       const payload = await this.jwtService.verifyAsync<{
         sub?: string;
         email?: string;
+        role?: Role;
       }>(token);
 
       if (!payload.sub || typeof payload.sub !== 'string') {
@@ -47,6 +62,7 @@ export class JwtAuthGuard implements CanActivate {
       request.user = {
         sub: payload.sub,
         email: payload.email,
+        role: payload.role || Role.USER,
       };
 
       return true;

@@ -16,15 +16,28 @@ import { diskStorage } from 'multer';
 import { mkdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard, AuthenticatedRequest } from '../auth/jwt-auth.guard';
 import { AttachmentsService } from './attachments.service';
 import { ATTACHMENT_UPLOAD_DIR } from './attachment-storage.service';
 
-interface AuthenticatedRequest extends Request {
-  user: { sub: string };
-}
+const ALLOWED_EXTENSIONS = new Set([
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
+  '.pdf', '.txt', '.csv', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.mp3', '.wav', '.ogg', '.m4a', '.webm',
+]);
+
+const ALLOWED_MIME_PREFIXES = [
+  'image/',
+  'audio/',
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument',
+  'application/vnd.ms-',
+];
 
 @Controller('attachments')
 @UseGuards(JwtAuthGuard)
@@ -47,11 +60,39 @@ export class AttachmentsController {
             .toLowerCase()
             .replace(/[^a-z0-9.]/g, '');
 
+          // Generate random unique storage name (Task 6)
           callback(null, `${randomUUID()}${extension}`);
         },
       }),
       limits: {
-        fileSize: 25 * 1024 * 1024,
+        fileSize: 25 * 1024 * 1024, // 25 MB max size (Task 6)
+      },
+      fileFilter: (_req, file, callback) => {
+        const extension = extname(file.originalname).toLowerCase();
+
+        // Check extension against whitelist
+        if (!ALLOWED_EXTENSIONS.has(extension)) {
+          return callback(
+            new BadRequestException(
+              `File type not allowed. Supported formats: images, documents (PDF, DOCX, XLSX, TXT, CSV), and audio.`,
+            ),
+            false,
+          );
+        }
+
+        // Check MIME type prefix
+        const isMimeAllowed = ALLOWED_MIME_PREFIXES.some((prefix) =>
+          file.mimetype.toLowerCase().startsWith(prefix),
+        );
+
+        if (!isMimeAllowed) {
+          return callback(
+            new BadRequestException(`Unsupported file MIME type: ${file.mimetype}`),
+            false,
+          );
+        }
+
+        callback(null, true);
       },
     }),
   )
@@ -66,7 +107,15 @@ export class AttachmentsController {
       );
     }
 
-    return this.attachmentsService.upload(request.user.sub, noteId, file);
+    return this.attachmentsService.upload(
+      request.user.sub,
+      noteId,
+      file,
+      {
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+      },
+    );
   }
 
   @Get()
@@ -85,6 +134,14 @@ export class AttachmentsController {
       id,
     );
 
+    // Set secure download headers to protect against XSS and MIME sniffing (Task 6 & 7)
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Content-Security-Policy', "default-src 'none'");
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(file.fileName)}"`,
+    );
+
     return response.download(file.path, file.fileName);
   }
 
@@ -93,6 +150,9 @@ export class AttachmentsController {
     @Param('id') id: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.attachmentsService.remove(request.user.sub, id);
+    return this.attachmentsService.remove(request.user.sub, id, {
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'],
+    });
   }
 }

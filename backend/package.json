@@ -7,6 +7,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },
@@ -16,11 +17,16 @@
     "@nestjs/jwt": "^12.0.3",
     "@nestjs/passport": "^12.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/throttler": "^6.7.1",
     "@prisma/adapter-mariadb": "^7.10.1",
     "@prisma/client": "^7.10.1",
+    "argon2": "^0.45.2",
     "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^18.0.9",
+    "helmet": "^8.3.0",
     "mariadb": "^3.5.4",
+    "mysql2": "^3.24.6",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
@@ -31,6 +37,7 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/testing": "^11.2.8",
     "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.3.0",
     "@types/node": "^22.0.0",
@@ -39,6 +46,19 @@
     "prisma": "^7.10.1",
     "ts-jest": "^29.4.15",
     "typescript": "^5.7.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "testEnvironment": "node"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,
