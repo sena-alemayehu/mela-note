@@ -10,7 +10,13 @@ import { CsrfGuard } from './csrf.guard';
   imports: [
     JwtModule.registerAsync({
       useFactory: () => {
-        const secret = process.env.JWT_SECRET || 'mela-note-super-secret-jwt-key-2026-secure-token';
+        const secret = process.env.JWT_SECRET?.trim();
+
+        if (!secret) {
+          throw new Error(
+            'JWT_SECRET is not set. Add it to your environment (see .env.example).',
+          );
+        }
 
         if (secret.length < 32) {
           throw new Error(
