@@ -1,24 +1,73 @@
-version: 2
-updates:
-  - package-ecosystem: "npm"
-    directory: "/backend"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "chore(deps-backend)"
-
-  - package-ecosystem: "npm"
-    directory: "/frontend"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "chore(deps-frontend)"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(ci)"
+C:\Users\user\Desktop\Mela Note\mela-note> version: 2
+>> updates:
+>>   - package-ecosystem: "npm"
+>>     directory: "/backend"
+>>     schedule:
+>>       interval: "weekly"
+>>     open-pull-requests-limit: 5
+>>     commit-message:
+>>       prefix: "chore(deps-backend)"
+>>     groups:
+>>       minor-and-patch:
+>>         patterns:
+>>           - "*"
+>>         update-types:
+>>           - "minor"
+>>           - "patch"
+>> 
+>>   - package-ecosystem: "npm"
+>>     directory: "/frontend"
+>>     schedule:
+>>       interval: "weekly"
+>>     open-pull-requests-limit: 5
+>>     commit-message:
+>>       prefix: "chore(deps-frontend)"
+>>     groups:
+>>       minor-and-patch:
+>>         patterns:
+>>           - "*"
+>>         update-types:
+>>           - "minor"
+>> 
+>>   - package-ecosystem: "github-actions"
+>>     directory: "/"
+>>     schedule:
+>>       interval: "weekly"
+>>     open-pull-requests-limit: 5
+>>     commit-message:
+>>       prefix: "chore(ci)"
+>>     groups:
+>>       minor-and-patch:
+>>         patterns:
+>>           - "*"
+>>         update-types:
+>>           - "minor"
+>>           - "patch"
+At line:3 char:4
++   - package-ecosystem: "npm"
++    ~
+Missing expression after unary operator '-'.
+At line:3 char:5
++   - package-ecosystem: "npm"
++     ~~~~~~~~~~~~~~~~~~
+Unexpected token 'package-ecosystem:' in expression or statement.
+At line:18 char:4
++   - package-ecosystem: "npm"
++    ~
+Missing expression after unary operator '-'.
+At line:18 char:5
++   - package-ecosystem: "npm"
++     ~~~~~~~~~~~~~~~~~~
+Unexpected token 'package-ecosystem:' in expression or statement.
+At line:33 char:4
++   - package-ecosystem: "github-actions"
++    ~
+Missing expression after unary operator '-'.
+At line:33 char:5
++   - package-ecosystem: "github-actions"
++     ~~~~~~~~~~~~~~~~~~
+Unexpected token 'package-ecosystem:' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingExpressionAfterOperator
+ 
+PS C:\Users\user\Desktop\Mela Note\mela-note> 
