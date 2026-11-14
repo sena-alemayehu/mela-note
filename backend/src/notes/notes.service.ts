@@ -1,14 +1,22 @@
-
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NoteStatus, NoteType } from '../generated/prisma/client';
 import { AttachmentStorageService } from '../attachments/attachment-storage.service';
+import { AuditLogService } from '../audit/audit-log.service';
+
+export interface FindAllNotesQuery {
+  status?: NoteStatus;
+  search?: string;
+  label?: string;
+  type?: NoteType;
+}
 
 @Injectable()
 export class NotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: AttachmentStorageService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   async create(
@@ -23,8 +31,9 @@ export class NotesService {
       labels?: string[];
       checklist?: unknown;
     },
+    meta?: { ipAddress?: string; userAgent?: string },
   ) {
-    return this.prisma.note.create({
+    const note = await this.prisma.note.create({
       data: {
         title: data.title ?? '',
         content: data.content,
@@ -38,17 +47,42 @@ export class NotesService {
       },
       include: { attachments: true },
     });
+
+    await this.auditLog.logAction({
+      userId,
+      action: 'NOTE_CREATE',
+      details: { noteId: note.id, type: note.type },
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
+
+    return note;
   }
 
   async findAll(
     userId: string,
-    status: NoteStatus = NoteStatus.ACTIVE,
+    query: FindAllNotesQuery = {},
   ) {
-    return this.prisma.note.findMany({
-      where: {
-        userId,
-        status,
-      },
+    const status = query.status ?? NoteStatus.ACTIVE;
+    const where: Record<string, unknown> = {
+      userId,
+      status,
+    };
+
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    if (query.search && query.search.trim()) {
+      const search = query.search.trim();
+      where.OR = [
+        { title: { contains: search } },
+        { content: { contains: search } },
+      ];
+    }
+
+    const notes = await this.prisma.note.findMany({
+      where: where as any,
       include: {
         attachments: true,
       },
@@ -57,6 +91,19 @@ export class NotesService {
         { updatedAt: 'desc' },
       ],
     });
+
+    // If label filter is requested, filter in memory or json
+    if (query.label && query.label.trim()) {
+      const targetLabel = query.label.trim().toLowerCase();
+      return notes.filter((note) => {
+        if (!Array.isArray(note.labels)) return false;
+        return (note.labels as string[]).some(
+          (l) => typeof l === 'string' && l.toLowerCase() === targetLabel,
+        );
+      });
+    }
+
+    return notes;
   }
 
   async findFavorites(userId: string) {
@@ -94,18 +141,21 @@ export class NotesService {
     data: {
       title?: string;
       content?: string;
+      type?: NoteType;
       color?: string;
       isPinned?: boolean;
       isFavorite?: boolean;
       labels?: string[];
       checklist?: unknown;
     },
+    meta?: { ipAddress?: string; userAgent?: string },
   ) {
     const result = await this.prisma.note.updateMany({
       where: { id, userId },
       data: {
         ...(data.title !== undefined && { title: data.title }),
         ...(data.content !== undefined && { content: data.content }),
+        ...(data.type !== undefined && { type: data.type }),
         ...(data.color !== undefined && { color: data.color }),
         ...(data.isPinned !== undefined && { isPinned: data.isPinned }),
         ...(data.isFavorite !== undefined && {
@@ -122,10 +172,18 @@ export class NotesService {
       throw new NotFoundException('Note not found');
     }
 
+    await this.auditLog.logAction({
+      userId,
+      action: 'NOTE_UPDATE',
+      details: { noteId: id },
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
+
     return this.findOne(userId, id);
   }
 
-  async trash(userId: string, id: string) {
+  async trash(userId: string, id: string, meta?: { ipAddress?: string; userAgent?: string }) {
     const result = await this.prisma.note.updateMany({
       where: { id, userId },
       data: {
@@ -139,10 +197,18 @@ export class NotesService {
       throw new NotFoundException('Note not found');
     }
 
+    await this.auditLog.logAction({
+      userId,
+      action: 'NOTE_TRASH',
+      details: { noteId: id },
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
+
     return { message: 'Note moved to Trash' };
   }
 
-  async archive(userId: string, id: string) {
+  async archive(userId: string, id: string, meta?: { ipAddress?: string; userAgent?: string }) {
     const result = await this.prisma.note.updateMany({
       where: { id, userId },
       data: {
@@ -156,10 +222,18 @@ export class NotesService {
       throw new NotFoundException('Note not found');
     }
 
+    await this.auditLog.logAction({
+      userId,
+      action: 'NOTE_ARCHIVE',
+      details: { noteId: id },
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
+
     return { message: 'Note archived' };
   }
 
-  async restore(userId: string, id: string) {
+  async restore(userId: string, id: string, meta?: { ipAddress?: string; userAgent?: string }) {
     const result = await this.prisma.note.updateMany({
       where: {
         id,
@@ -181,10 +255,18 @@ export class NotesService {
       );
     }
 
+    await this.auditLog.logAction({
+      userId,
+      action: 'NOTE_RESTORE',
+      details: { noteId: id },
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
+
     return { message: 'Note restored' };
   }
 
-  async permanentlyDelete(userId: string, id: string) {
+  async permanentlyDelete(userId: string, id: string, meta?: { ipAddress?: string; userAgent?: string }) {
     // Find the trashed note and collect its attachment storage keys
     const note = await this.prisma.note.findFirst({
       where: {
@@ -223,6 +305,14 @@ export class NotesService {
     for (const attachment of note.attachments) {
       await this.storage.deleteFile(attachment.storageKey);
     }
+
+    await this.auditLog.logAction({
+      userId,
+      action: 'NOTE_DELETE_PERMANENT',
+      details: { noteId: id },
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
 
     return { message: 'Note permanently deleted' };
   }

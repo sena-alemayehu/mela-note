@@ -733,3 +733,66 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================
+   Paste at the VERY BOTTOM of src/styles/auth.css
+   Eye icon (show / hide password) + icon alignment
+   ========================================================== */
+
+.auth-input-shell {
+  position: relative;
+}
+
+/* Make room on the right so text never goes under the eye icon */
+.auth-input-shell .auth-password-input {
+  padding-right: 50px;
+}
+
+/* Lock / mail icons on the left */
+.input-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.input-symbol svg {
+  display: block;
+}
+
+/* Eye button */
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.auth-password-toggle:hover {
+  background: rgb(69 89 234 / 10%);
+  color: #4559ea;
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid #4559ea;
+  outline-offset: 2px;
+}
+
+/* Hide the browser's own reveal / clear icons so there is only one eye */
+.auth-input-shell input[type="password"]::-ms-reveal,
+.auth-input-shell input[type="password"]::-ms-clear {
+  display: none;
+}

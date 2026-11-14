@@ -8,6 +8,11 @@ datasource db {
   provider = "mysql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 enum NoteType {
   TEXT
   CHECKLIST
@@ -20,14 +25,18 @@ enum NoteStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique @db.VarChar(191)
-  name         String   @db.VarChar(120)
-  passwordHash String   @db.VarChar(255)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String     @id @default(cuid())
+  email               String     @unique @db.VarChar(191)
+  name                String     @db.VarChar(120)
+  passwordHash        String     @db.VarChar(255)
+  role                Role       @default(USER)
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
-  notes        Note[]
+  notes               Note[]
+  auditLogs           AuditLog[]
 }
 
 model Note {
@@ -68,4 +77,19 @@ model Attachment {
   note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@index([noteId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @db.VarChar(191)
+  action    String   @db.VarChar(100)
+  details   Json?
+  ipAddress String?  @db.VarChar(45)
+  userAgent String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, action])
+  @@index([createdAt])
 }

@@ -1,8 +1,8 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "../../../lib/api";
 import { useLanguage } from "../../../components/language/LanguageProvider";
@@ -117,7 +117,10 @@ export default function ArchivePage() {
             {t("yourCollection")}
           </p>
 
-          <h1>▣ {t("archive")}</h1>
+          <h1>
+            <Archive className="page-title-icon" size={28} strokeWidth={1.8} aria-hidden="true" />
+            {t("archive")}
+          </h1>
 
           <p>{t("archiveDescription")}</p>
         </div>

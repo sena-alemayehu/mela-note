@@ -1,9 +1,9 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import LanguageSwitcher from "../language/LanguageSwitcher";
 import { useLanguage } from "../language/LanguageProvider";
 import "../../styles/auth.css";
@@ -40,6 +40,8 @@ const copy = {
     namePlaceholder: "Your full name",
     emailPlaceholder: "hello@example.com",
     passwordPlaceholder: "Enter your password",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     forgot: "Forgot Password?",
     already: "Already have an account?",
     noAccount: "Don't have an account?",
@@ -66,6 +68,8 @@ const copy = {
     namePlaceholder: "ሙሉ ስምዎን ያስገቡ",
     emailPlaceholder: "hello@example.com",
     passwordPlaceholder: "የይለፍ ቃልዎን ያስገቡ",
+    showPassword: "የይለፍ ቃል አሳይ",
+    hidePassword: "የይለፍ ቃል ደብቅ",
     forgot: "የይለፍ ቃል ረሱ?",
     already: "መለያ አለዎት?",
     noAccount: "መለያ የለዎትም?",
@@ -83,7 +87,7 @@ const copy = {
 
 export default function AuthScreen({ mode }: AuthScreenProps) {
   const { language } = useLanguage();
-  const t = copy[language as Language];
+  const t = copy[language as Language] ?? copy.en;
 
   const isSignup = mode === "signup";
   const router = useRouter();
@@ -91,6 +95,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -138,6 +143,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
       const response = await fetch(endpoint, {
         method: "POST",
+        credentials: "include", // Accepts secure HttpOnly cookies (Task 1)
         headers: {
           "Content-Type": "application/json",
         },
@@ -283,7 +289,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                 <div className="auth-input-shell">
                   <span className="input-symbol" aria-hidden="true">
-                    ✉
+                    <Mail size={17} strokeWidth={1.8} />
                   </span>
 
                   <input
@@ -302,11 +308,12 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                 <div className="auth-input-shell">
                   <span className="input-symbol" aria-hidden="true">
-                    ♙
+                    <Lock size={17} strokeWidth={1.8} />
                   </span>
 
                   <input
-                    type="password"
+                    className="auth-password-input"
+                    type={showPassword ? "text" : "password"}
                     autoComplete={
                       isSignup ? "new-password" : "current-password"
                     }
@@ -316,6 +323,26 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     minLength={8}
                     required
                   />
+
+                  <button
+                    type="button"
+                    className="auth-password-toggle"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    aria-label={
+                      showPassword ? t.hidePassword : t.showPassword
+                    }
+                    aria-pressed={showPassword}
+                    title={
+                      showPassword ? t.hidePassword : t.showPassword
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} strokeWidth={1.8} />
+                    ) : (
+                      <Eye size={18} strokeWidth={1.8} />
+                    )}
+                  </button>
                 </div>
               </label>
 

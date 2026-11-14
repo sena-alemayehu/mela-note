@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables & secrets (CRITICAL: never commit secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.cert
+
+# Production builds
+dist/
+.next/
+out/
+build/
+
+# Uploads & local storage
+uploads/
+backend/uploads/
+backups/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+
+# OS metadata
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Local database reports and backups
+backend/mela-note-report.html
+backend/mela-note-report.txt
+frontend/src/i18n/*.json.backup

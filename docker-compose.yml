@@ -1,0 +1,78 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: mela_note_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secure_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mela_note}
+      MYSQL_USER: ${MYSQL_USER:-mela_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secure_password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mela_note_backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      DATABASE_URL: mysql://${MYSQL_USER:-mela_app}:${MYSQL_PASSWORD:-app_secure_password}@db:3306/${MYSQL_DATABASE:-mela_note}
+      JWT_SECRET: ${JWT_SECRET:-mela_note_production_jwt_secret_must_be_32_chars_long}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    volumes:
+      - attachments_data:/app/uploads
+    ports:
+      - "127.0.0.1:3001:3001"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+    container_name: mela_note_frontend
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  proxy:
+    image: caddy:2-alpine
+    container_name: mela_note_proxy
+    restart: always
+    depends_on:
+      - frontend
+      - backend
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  mysql_data:
+  attachments_data:
+  caddy_data:
+  caddy_config:

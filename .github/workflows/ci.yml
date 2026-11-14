@@ -1,0 +1,105 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-checks:
+    name: Backend Tests & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    # Test-only values. Never put real secrets here.
+    env:
+      DATABASE_URL: mysql://root:root@127.0.0.1:3306/mela_note_test
+      SHADOW_DATABASE_URL: mysql://root:root@127.0.0.1:3306/mela_note_shadow
+      JWT_SECRET: ci-only-test-secret-change-me-0123456789abcdef
+      NODE_ENV: test
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: mela_note_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Use npm 11
+        run: npm install --global npm@11.20.0
+
+      - name: Check Node and npm Versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run Backend Unit Tests
+        run: npm test
+
+      - name: Build Backend (NestJS)
+        run: npm run build
+
+  frontend-checks:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Use npm 11
+        run: npm install --global npm@11.20.0
+
+      - name: Check Node and npm Versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Linter
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build Frontend (Next.js)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001/api
