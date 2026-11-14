@@ -24,8 +24,9 @@ type AuthResponse = {
   message?: string | string[];
 };
 
+// The base URL already includes "/api" (same as the dashboard pages).
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 const copy = {
   en: {
@@ -127,8 +128,8 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
     try {
       const endpoint = isSignup
-        ? `${API_BASE_URL}/api/auth/register`
-        : `${API_BASE_URL}/api/auth/login`;
+        ? `${API_BASE_URL}/auth/register`
+        : `${API_BASE_URL}/auth/login`;
 
       const requestBody = isSignup
         ? {

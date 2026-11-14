@@ -4,10 +4,10 @@ services:
     container_name: mela_note_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secure_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mela_note}
       MYSQL_USER: ${MYSQL_USER:-mela_app}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app_secure_password}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
@@ -29,8 +29,8 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: production
-      DATABASE_URL: mysql://${MYSQL_USER:-mela_app}:${MYSQL_PASSWORD:-app_secure_password}@db:3306/${MYSQL_DATABASE:-mela_note}
-      JWT_SECRET: ${JWT_SECRET:-mela_note_production_jwt_secret_must_be_32_chars_long}
+      DATABASE_URL: mysql://${MYSQL_USER:-mela_app}:${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}@db:3306/${MYSQL_DATABASE:-mela_note}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (32+ random characters)}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     volumes:
       - attachments_data:/app/uploads
